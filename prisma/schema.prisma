@@ -1,0 +1,208 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+        
+
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  password         String
+  role             Role      @default(EMPLOYEE)
+  employeeId       String    @unique
+  firstName        String
+  lastName         String
+  department       Department
+  position         String
+  phoneNumber      String?
+  birthday         DateTime?
+  address          String?
+  emergencyContact String?
+  dateOfJoining    DateTime  @default(now())
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  // Relations
+  leaves              Leave[]          @relation("EmployeeLeaves")
+  coverRequests       CoverRequest[]   @relation("CoverEmployee")
+  requestedLeaves     Leave[]          @relation("RequestedLeaves")
+  attendance          Attendance[]
+  leaveBalance        LeaveBalance?
+  notifications       Notification[]
+  sentNotifications   Notification[]   @relation("NotificationSender")
+
+  @@index([email])
+  @@index([employeeId])
+  @@index([department])
+  @@index([birthday])
+}
+
+model Leave {
+  id                String      @id @default(uuid())
+  employeeId        String
+  employee          User        @relation("EmployeeLeaves", fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType         LeaveType
+  startDate         DateTime
+  endDate           DateTime
+  totalDays         Int
+  reason            String
+  status            LeaveStatus @default(PENDING_COVER)
+  adminResponse     String?
+  coverEmployeeId   String?
+  coverEmployee     User?       @relation("RequestedLeaves", fields: [coverEmployeeId], references: [id])
+  medicalCertPath   String?
+  isCancelled       Boolean     @default(false)
+  cancellationReason String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  coverRequest      CoverRequest?
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([startDate])
+}
+
+model CoverRequest {
+  id              String        @id @default(uuid())
+  leaveId         String        @unique
+  leave           Leave         @relation(fields: [leaveId], references: [id], onDelete: Cascade)
+  coverEmployeeId String
+  coverEmployee   User          @relation("CoverEmployee", fields: [coverEmployeeId], references: [id])
+  status          CoverStatus   @default(PENDING)
+  responseMessage String?
+  requestedAt     DateTime      @default(now())
+  respondedAt     DateTime?
+  expiresAt       DateTime
+
+  @@index([coverEmployeeId])
+  @@index([status])
+}
+
+model Attendance {
+  id          String            @id @default(uuid())
+  employeeId  String
+  employee    User              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date        DateTime
+  checkIn     DateTime?
+  checkOut    DateTime?
+  status      AttendanceStatus
+  workHours   Float?
+  isWeekend   Boolean           @default(false)
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@unique([employeeId, date])
+  @@index([employeeId])
+  @@index([date])
+}
+
+model LeaveBalance {
+  id          String   @id @default(uuid())
+  employeeId  String   @unique
+  employee    User     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  year        Int
+  annual      Int      @default(14)
+  casual      Int      @default(7)
+  medical     Int      @default(0)
+  business    Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@index([year])
+}
+
+model Notification {
+  id          String             @id @default(uuid())
+  userId      String
+  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        NotificationType
+  title       String
+  message     String
+  isRead      Boolean            @default(false)
+  senderId    String?
+  sender      User?              @relation("NotificationSender", fields: [senderId], references: [id])
+  relatedId   String?
+  createdAt   DateTime           @default(now())
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}
+
+model PublicHoliday {
+  id          String   @id @default(uuid())
+  name        String
+  date        DateTime
+  description String?
+  createdAt   DateTime @default(now())
+
+  @@index([date])
+}
+
+enum Role {
+  ADMIN
+  EMPLOYEE
+  HR_MANAGER
+}
+
+enum Department {
+  ENGINEERING
+  OPERATIONS
+  QUALITY_CONTROL
+  MAINTENANCE
+  ADMINISTRATION
+  HR
+  FINANCE
+  LOGISTICS
+}
+
+enum LeaveType {
+  ANNUAL
+  CASUAL
+  MEDICAL
+  BUSINESS
+}
+
+enum LeaveStatus {
+  PENDING_COVER
+  PENDING_ADMIN
+  APPROVED
+  DECLINED
+  CANCELLED
+}
+
+enum CoverStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LATE
+  HALF_DAY
+  LEAVE
+  HOLIDAY
+}
+
+enum NotificationType {
+  LEAVE_REQUEST
+  LEAVE_APPROVED
+  LEAVE_DECLINED
+  LEAVE_CANCELLED
+  COVER_REQUEST
+  COVER_ACCEPTED
+  COVER_DECLINED
+  ATTENDANCE_ALERT
+  LEAVE_BALANCE_LOW
+  SYSTEM_ALERT
+}
