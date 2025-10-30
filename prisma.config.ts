@@ -1,11 +1,9 @@
 import { defineConfig } from "prisma/config";
 import * as dotenv from "dotenv";
 
-// Load environment variables from .env file
-dotenv.config();
-
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL environment variable is not set");
+// Load environment variables from .env file only in development
+if (process.env.NODE_ENV !== "production") {
+  dotenv.config();
 }
 
 export default defineConfig({
@@ -15,6 +13,6 @@ export default defineConfig({
   },
   engine: "classic",
   datasource: {
-    url: process.env.DATABASE_URL,
+    url: process.env.DATABASE_URL || "",
   },
 });
