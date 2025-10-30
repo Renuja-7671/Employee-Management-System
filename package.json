@@ -1,17 +1,17 @@
 {
   "name": "ems",
   "version": "0.1.0",
-  "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "next lint",
     "lint:fix": "eslint --fix",
     "db:seed": "npx prisma db seed",
     "db:reset": "npx prisma migrate reset",
     "db:push": "npx prisma db push",
-    "db:studio": "npx prisma studio"
+    "db:studio": "npx prisma studio",
+    "postinstall": "prisma generate"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
