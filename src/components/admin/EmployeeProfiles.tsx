@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -32,11 +33,14 @@ import {
   Edit,
   Save,
   X,
+  Gift,
+  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getEmployees, Employee as EmployeeAPI } from '@/lib/api/employees';
 import { getProfilePicture } from '@/lib/api/profile';
 import { Textarea } from '@/components/ui/textarea';
+import { BirthdayEmails } from './BirthdayEmails';
 
 interface Employee extends EmployeeAPI {
   name: string;
@@ -293,8 +297,21 @@ export function EmployeeProfiles() {
 
   return (
     <div className="space-y-6">
-      {/* Upcoming Birthdays Section */}
-      {upcomingBirthdays.length > 0 && (
+      <Tabs defaultValue="profiles" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="profiles" className="flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Employee Profiles
+          </TabsTrigger>
+          <TabsTrigger value="birthday-emails" className="flex items-center gap-2">
+            <Gift className="h-4 w-4" />
+            Birthday Emails
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="profiles" className="space-y-6 mt-6">
+          {/* Upcoming Birthdays Section */}
+          {upcomingBirthdays.length > 0 && (
         <Card className="bg-gradient-to-r from-pink-50 to-purple-50 border-pink-200">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-pink-700">
@@ -365,7 +382,7 @@ export function EmployeeProfiles() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {filteredEmployees.length === 0 ? (
               <div className="col-span-full text-center text-gray-500 py-8">
                 No employees found
@@ -380,46 +397,46 @@ export function EmployeeProfiles() {
                     setShowDetailsDialog(true);
                   }}
                 >
-                  <CardContent className="pt-6">
-                    <div className="flex flex-col items-center text-center space-y-3">
-                      <Avatar className="h-20 w-20">
+                  <CardContent className="pt-4 pb-3">
+                    <div className="flex flex-col items-center text-center space-y-2">
+                      <Avatar className="h-14 w-14">
                         {profilePictures[employee.id] && (
                           <AvatarImage src={profilePictures[employee.id]} />
                         )}
-                        <AvatarFallback className="bg-teal-100 text-teal-700 text-lg">
+                        <AvatarFallback className="bg-teal-100 text-teal-700 text-sm">
                           {getInitials(employee.name)}
                         </AvatarFallback>
                       </Avatar>
 
-                      <div className="space-y-1">
-                        <h3 className="font-semibold text-lg">
+                      <div className="space-y-1 w-full">
+                        <h3 className="font-semibold text-sm leading-tight">
                           {employee.name}
                         </h3>
-                        <Badge variant="secondary">{employee.employeeId}</Badge>
+                        <Badge variant="secondary" className="text-xs">{employee.employeeId}</Badge>
                       </div>
 
-                      <div className="w-full space-y-2 text-sm text-gray-600">
+                      <div className="w-full space-y-1.5 text-xs text-gray-600">
                         {employee.position && (
-                          <div className="flex items-center gap-2">
-                            <Briefcase className="h-4 w-4" />
+                          <div className="flex items-center gap-1.5 justify-center">
+                            <Briefcase className="h-3 w-3 flex-shrink-0" />
                             <span className="truncate">{employee.position}</span>
                           </div>
                         )}
                         {employee.department && (
-                          <div className="flex items-center gap-2">
-                            <Building2 className="h-4 w-4" />
+                          <div className="flex items-center gap-1.5 justify-center">
+                            <Building2 className="h-3 w-3 flex-shrink-0" />
                             <span className="truncate">
                               {employee.department}
                             </span>
                           </div>
                         )}
                         {employee.birthday && (
-                          <div className="flex items-center gap-2">
-                            <Cake className="h-4 w-4" />
-                            <span>
+                          <div className="flex items-center gap-1.5 justify-center">
+                            <Cake className="h-3 w-3 flex-shrink-0" />
+                            <span className="text-xs">
                               {new Date(employee.birthday).toLocaleDateString(
                                 'en-US',
-                                { month: 'long', day: 'numeric' }
+                                { month: 'short', day: 'numeric' }
                               )}
                             </span>
                           </div>
@@ -429,7 +446,7 @@ export function EmployeeProfiles() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="w-full"
+                        className="w-full text-xs h-7"
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedEmployee(employee);
@@ -776,6 +793,12 @@ export function EmployeeProfiles() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+        </TabsContent>
+
+        <TabsContent value="birthday-emails" className="mt-6">
+          <BirthdayEmails />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

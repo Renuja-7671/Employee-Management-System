@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { sendLeaveApprovalEmails } from '@/lib/leave-emails';
 
 export async function POST(
   request: NextRequest,
@@ -69,6 +70,70 @@ export async function POST(
           [fieldToUpdate]: newBalance,
         },
       });
+    }
+
+    // Fetch employee and cover employee details for email
+    const employee = await prisma.user.findUnique({
+      where: { id: leave.employeeId },
+      select: {
+        firstName: true,
+        lastName: true,
+        email: true,
+      },
+    });
+
+    let coverEmployee = null;
+    if (leave.coverEmployeeId) {
+      coverEmployee = await prisma.user.findUnique({
+        where: { id: leave.coverEmployeeId },
+        select: {
+          firstName: true,
+          lastName: true,
+          email: true,
+        },
+      });
+    }
+
+    // Send emails to all parties (don't wait for completion)
+    if (employee) {
+      const leaveTypeMap: any = {
+        ANNUAL: 'Annual Leave',
+        CASUAL: 'Casual Leave',
+        MEDICAL: 'Medical Leave',
+        BUSINESS: 'Business Leave',
+      };
+
+      const emailData = {
+        employeeName: `${employee.firstName} ${employee.lastName}`,
+        employeeEmail: employee.email,
+        leaveType: leaveTypeMap[leave.leaveType] || leave.leaveType,
+        startDate: new Date(leave.startDate).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        }),
+        endDate: new Date(leave.endDate).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        }),
+        totalDays: leave.totalDays,
+        reason: leave.reason,
+        adminResponse: body.adminResponse || undefined,
+        coverEmployeeName: coverEmployee
+          ? `${coverEmployee.firstName} ${coverEmployee.lastName}`
+          : undefined,
+        coverEmployeeEmail: coverEmployee?.email || undefined,
+      };
+
+      // Send emails asynchronously (don't block the response)
+      sendLeaveApprovalEmails(emailData)
+        .then((results) => {
+          console.log('Leave approval emails sent:', results);
+        })
+        .catch((error) => {
+          console.error('Error sending leave approval emails:', error);
+        });
     }
 
     return NextResponse.json({ success: true, leave });

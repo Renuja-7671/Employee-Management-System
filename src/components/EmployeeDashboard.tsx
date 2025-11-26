@@ -45,12 +45,62 @@ export function EmployeeDashboard({
   const [pendingCoverCount, setPendingCoverCount] = useState(0);
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
 
+  // Fetch profile picture on mount or when user changes
   useEffect(() => {
+    if (!user?.id) return;
+
+    let isMounted = true;
+
+    const fetchProfilePicture = async () => {
+      try {
+        const url = await getProfilePicture(user.id);
+        if (isMounted && url) {
+          setProfilePictureUrl(url);
+        }
+      } catch (error) {
+        console.error("Error fetching profile picture:", error);
+      }
+    };
+
     fetchProfilePicture();
-    fetchPendingCoverCount();
+
+    return () => {
+      isMounted = false;
+    };
   }, [user?.id]);
 
-  const fetchPendingCoverCount = async () => {
+  // Fetch pending cover count on mount or when user changes
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let isMounted = true;
+
+    const fetchPendingCoverCount = async () => {
+      try {
+        const response = await fetch(`/api/cover-requests/pending?userId=${user.id}`);
+
+        if (!isMounted) return;
+
+        if (response.ok) {
+          const data = await response.json();
+          setPendingCoverCount(data.count || 0);
+        }
+      } catch (error) {
+        console.error("Error fetching pending cover count:", error);
+      }
+    };
+
+    fetchPendingCoverCount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
+  // Refetch function for cover requests (used in callback)
+  const refetchPendingCoverCount = async () => {
+    if (!user?.id) return;
+
     try {
       const response = await fetch(`/api/cover-requests/pending?userId=${user.id}`);
 
@@ -62,17 +112,7 @@ export function EmployeeDashboard({
       console.error("Error fetching pending cover count:", error);
     }
   };
-
-  const fetchProfilePicture = async () => {
-    if (!user?.id) return;
-
-    try {
-      const url = await getProfilePicture(user.id);
-      if (url) setProfilePictureUrl(url);
-    } catch (error) {
-      console.error("Error fetching profile picture:", error);
-    }
-  };
+  
 
   const getInitials = (name: string) => {
     if (!name) return "??";
@@ -153,7 +193,7 @@ export function EmployeeDashboard({
                 <Home className="h-4 w-4 mr-2" />
                 Home
               </Button>
-              <Button variant="outline" onClick={onLogout}>
+              <Button variant="destructive" onClick={onLogout}>
                 <LogOut className="h-4 w-4 mr-2" />
                 Logout
               </Button>
@@ -203,7 +243,7 @@ export function EmployeeDashboard({
             <CoverRequests
               user={user}
               onUpdate={() => {
-                fetchPendingCoverCount();
+                refetchPendingCoverCount();
                 setUnreadCount((prev) => Math.max(0, prev - 1));
               }}
             />

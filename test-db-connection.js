@@ -1,7 +1,7 @@
 // test-db-connection.js
 // Simple script to test database connectivity
 
-const { PrismaClient } = require('@prisma/client');
+import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient({
   log: ['query', 'error', 'warn'],

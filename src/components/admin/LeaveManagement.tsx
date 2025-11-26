@@ -385,31 +385,31 @@ export function LeaveManagement() {
             <DialogTitle>
               {action === 'approve' ? 'Approve' : 'Decline'} Leave Request
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription asChild>
               {selectedLeave && (
                 <div className="space-y-2 text-sm">
-                  <p>
+                  <div>
                     <span className="font-medium">Employee:</span>{' '}
                     {getEmployeeName(selectedLeave.userId)}
-                  </p>
-                  <p>
+                  </div>
+                  <div>
                     <span className="font-medium">Leave Type:</span>{' '}
                     <span className="capitalize">{selectedLeave.leaveType}</span>
-                  </p>
-                  <p>
+                  </div>
+                  <div>
                     <span className="font-medium">Period:</span>{' '}
                     {new Date(selectedLeave.startDate).toLocaleDateString()} to{' '}
                     {new Date(selectedLeave.endDate).toLocaleDateString()}
-                  </p>
-                  <p>
+                  </div>
+                  <div>
                     <span className="font-medium">Days:</span>{' '}
                     {selectedLeave.days} days
-                  </p>
+                  </div>
                   {selectedLeave.reason && (
-                    <p>
+                    <div>
                       <span className="font-medium">Reason:</span>{' '}
                       {selectedLeave.reason}
-                    </p>
+                    </div>
                   )}
                 </div>
               )}

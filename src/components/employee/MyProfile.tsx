@@ -192,6 +192,20 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
       if (response.ok) {
         toast.success('Profile updated successfully');
         setProfile(data.profile);
+        // Update localStorage to persist changes across page reloads
+        const currentProfile = localStorage.getItem('profile');
+        if (currentProfile) {
+          const updatedProfile = { ...JSON.parse(currentProfile), ...data.profile };
+          localStorage.setItem('profile', JSON.stringify(updatedProfile));
+          // Manually dispatch storage event to trigger useAuth hook refresh
+          window.dispatchEvent(new StorageEvent('storage', {
+            key: 'profile',
+            newValue: JSON.stringify(updatedProfile),
+            oldValue: currentProfile,
+            storageArea: localStorage,
+            url: window.location.href
+          }));
+        }
         setEditMode(false);
       } else {
         toast.error(data.error || 'Failed to update profile');
@@ -293,7 +307,7 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
                   <DialogHeader>
                     <DialogTitle>Change Password</DialogTitle>
                     <DialogDescription>
-                      Enter your current password and new password below. Make sure it's at least 6 characters long.
+                      Enter your current password and new password below. Make sure it is at least 6 characters long.
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleChangePassword} className="space-y-4">
@@ -577,7 +591,7 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
                   onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
                 />
                 <p className="text-xs text-gray-500">
-                  Include name and phone number (e.g., "John Doe - +1 234 567 8900")
+                  Include name and phone number (e.g., "Ashan - 077 123 4567")
                 </p>
               </div>
             )}

@@ -110,8 +110,8 @@ export function LandingPage() {
                   </Button>
                   <Button
                     onClick={logout}
-                    variant="outline"
-                    className="border-gray-600 text-gray-300 hover:bg-gray-800 hover:text-white px-3 sm:px-4 text-sm sm:text-base h-9 sm:h-10 hidden sm:flex"
+                    variant="destructive"
+                    className="px-3 sm:px-4 text-sm sm:text-base h-9 sm:h-10 hidden sm:flex"
                   >
                     Logout
                   </Button>

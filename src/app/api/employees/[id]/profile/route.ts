@@ -17,6 +17,9 @@ export async function PUT(
         phoneNumber: body.phone,
         department: body.department,
         position: body.position,
+        birthday: body.birthday,
+        address: body.address,
+        emergencyContact: body.emergencyContact,
         // Add other profile fields as needed
       },
     });

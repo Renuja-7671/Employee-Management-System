@@ -30,6 +30,10 @@ export async function POST(request: NextRequest) {
         department: true,
         position: true,
         phoneNumber: true,
+        address: true,
+        emergencyContact: true,
+        birthday: true,
+        dateOfJoining: true,
         isActive: true,
       },
     });
@@ -76,6 +80,10 @@ export async function POST(request: NextRequest) {
         department: user.department,
         position: user.position,
         phoneNumber: user.phoneNumber,
+        address: user.address,
+        emergencyContact: user.emergencyContact,
+        birthday: user.birthday,
+        dateOfJoining: user.dateOfJoining,
       },
     });
   } catch (error: any) {
