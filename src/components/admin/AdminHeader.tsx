@@ -53,6 +53,7 @@ export function AdminHeader() {
   };
 
   const getActiveTab = () => {
+    if (pathname.includes('/admins')) return 'admins';
     if (pathname.includes('/employees')) return 'employees';
     if (pathname.includes('/profiles')) return 'profiles';
     if (pathname.includes('/leaves')) return 'leaves';
@@ -143,7 +144,7 @@ export function AdminHeader() {
       <div className="bg-white py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Tabs value={getActiveTab()} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 h-12">
+            <TabsList className="grid w-full grid-cols-6 h-12">
               <TabsTrigger value="overview" asChild>
                 <Link href="/admin/dashboard">Overview</Link>
               </TabsTrigger>
@@ -158,6 +159,9 @@ export function AdminHeader() {
               </TabsTrigger>
               <TabsTrigger value="attendance" asChild>
                 <Link href="/admin/attendance">Attendance</Link>
+              </TabsTrigger>
+              <TabsTrigger value="admins" asChild>
+                <Link href="/admin/admins">Admins</Link>
               </TabsTrigger>
             </TabsList>
           </Tabs>
