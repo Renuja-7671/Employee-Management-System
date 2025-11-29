@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
           annual: 14,
           casual: 7,
           medical: 0,
-          business: 0,
+          official: 0,
         },
       });
     }
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
         annual: leaveBalance.annual,
         casual: leaveBalance.casual,
         medical: leaveBalance.medical,
-        business: leaveBalance.business,
+        official: leaveBalance.official,
       },
       counts: {
         medicalLeaveTaken: medicalLeaveCount,

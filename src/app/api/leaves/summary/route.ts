@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
       employeeLeaves.forEach(leave => {
         if (leave.status === 'APPROVED') {
           leaveTaken[leave.leaveType].approved += leave.totalDays;
-        } else if (leave.status === 'PENDING') {
+        } else if (leave.status === 'PENDING_COVER' || leave.status === 'PENDING_ADMIN') {
           leaveTaken[leave.leaveType].pending += leave.totalDays;
         } else if (leave.status === 'DECLINED') {
           leaveTaken[leave.leaveType].declined += leave.totalDays;
