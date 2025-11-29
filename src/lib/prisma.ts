@@ -1,11 +1,26 @@
 // src/lib/prisma.ts
 
 import { PrismaClient } from '@prisma/client';
+import { Pool } from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
 
 const prismaClientSingleton = () => {
-  // For Vercel serverless, use simple Prisma client without custom pooling
-  // DATABASE_URL should have pgbouncer=true and connection_limit=1 for Supabase
+  // For Vercel deployment with Supabase
+  const connectionString = process.env.DATABASE_URL;
+
+  const pool = new Pool({
+    connectionString,
+    // Minimal pool config for Vercel serverless
+    max: 1,
+    min: 0,
+    idleTimeoutMillis: 0,
+    connectionTimeoutMillis: 10000,
+  });
+
+  const adapter = new PrismaPg(pool);
+
   return new PrismaClient({
+    adapter,
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   });
 };
