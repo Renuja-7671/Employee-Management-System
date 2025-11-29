@@ -24,12 +24,41 @@ export async function POST(request: NextRequest) {
 
     const currentAdmin = await prisma.user.findUnique({
       where: { id: currentAdminId },
-    });
+      select: {
+        id: true,
+        role: true,
+        adminType: true,
+      },
+    } as any);
 
     if (!currentAdmin || currentAdmin.role !== 'ADMIN') {
       return NextResponse.json(
         { success: false, error: 'Unauthorized: Only admins can create new admins' },
         { status: 403 }
+      );
+    }
+
+    // Only Managing Director and HR Head can create admins
+    if (currentAdmin.adminType !== 'MANAGING_DIRECTOR' && currentAdmin.adminType !== 'HR_HEAD') {
+      return NextResponse.json(
+        { success: false, error: 'Only Managing Director or HR Head can create new admins' },
+        { status: 403 }
+      );
+    }
+
+    // Check if Reserved admin position is already filled
+    const reservedAdmin = await prisma.user.findFirst({
+      where: {
+        role: 'ADMIN',
+        adminType: 'RESERVED',
+        isActive: true,
+      },
+    } as any);
+
+    if (reservedAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Reserved admin position is already filled' },
+        { status: 400 }
       );
     }
 
@@ -56,23 +85,25 @@ export async function POST(request: NextRequest) {
     // Generate employee ID (ADM + timestamp)
     const employeeId = `ADM${Date.now().toString().slice(-6)}`;
 
-    // Create admin user
+    // Create admin user with RESERVED type
     const newAdmin = await prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         role: 'ADMIN',
+        adminType: 'RESERVED',
         employeeId,
         firstName,
         lastName,
-        department: 'ADMINISTRATION',
-        position: 'System Administrator',
+        department: 'MANAGEMENT',
+        position: 'Administrator',
         isActive: true,
       },
       select: {
         id: true,
         email: true,
         role: true,
+        adminType: true,
         employeeId: true,
         firstName: true,
         lastName: true,
@@ -80,7 +111,7 @@ export async function POST(request: NextRequest) {
         position: true,
         createdAt: true,
       },
-    });
+    } as any);
 
     // Create leave balance for admin
     await prisma.leaveBalance.create({
@@ -90,8 +121,7 @@ export async function POST(request: NextRequest) {
         annual: 14,
         casual: 7,
         medical: 0,
-        business: 0,
-      },
+        official: 0,},
     });
 
     return NextResponse.json({

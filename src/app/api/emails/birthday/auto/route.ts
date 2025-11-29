@@ -1,7 +1,7 @@
 // src/app/api/emails/birthday/auto/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { sendBirthdayEmail } from '@/lib/nodemailer';
+import { sendBirthdayEmail, sendBirthdayReminderEmail } from '@/lib/nodemailer';
 
 export async function GET(request: NextRequest) {
   try {
@@ -60,6 +60,8 @@ export async function GET(request: NextRequest) {
 
     const results = [];
     const errors = [];
+    const reminderResults = [];
+    const reminderErrors = [];
 
     // Send birthday email to each employee
     for (const employee of birthdayEmployees) {
@@ -106,15 +108,89 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Send birthday reminder emails to all other employees
+    if (birthdayEmployees.length > 0) {
+      // Get all active employees except the birthday person(s)
+      const birthdayEmployeeIds = birthdayEmployees.map(emp => emp.id);
+      const otherEmployees = await prisma.user.findMany({
+        where: {
+          isActive: true,
+          id: {
+            notIn: birthdayEmployeeIds,
+          },
+        },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+        },
+      });
+
+      // Send reminder email to each colleague
+      for (const colleague of otherEmployees) {
+        for (const birthdayEmployee of birthdayEmployees) {
+          const colleagueName = `${colleague.firstName} ${colleague.lastName}`;
+          const birthdayPersonName = `${birthdayEmployee.firstName} ${birthdayEmployee.lastName}`;
+
+          try {
+            const reminderResult = await sendBirthdayReminderEmail(
+              colleague.email,
+              colleagueName,
+              birthdayPersonName
+            );
+
+            if (reminderResult.success) {
+              reminderResults.push({
+                employeeId: colleague.id,
+                email: colleague.email,
+                name: colleagueName,
+                birthdayPerson: birthdayPersonName,
+                status: 'sent',
+                messageId: reminderResult.messageId,
+              });
+            } else {
+              reminderErrors.push({
+                employeeId: colleague.id,
+                email: colleague.email,
+                name: colleagueName,
+                birthdayPerson: birthdayPersonName,
+                status: 'failed',
+                error: 'Failed to send reminder email',
+              });
+            }
+          } catch (error: any) {
+            reminderErrors.push({
+              employeeId: colleague.id,
+              email: colleague.email,
+              name: colleagueName,
+              birthdayPerson: birthdayPersonName,
+              status: 'failed',
+              error: error.message,
+            });
+          }
+        }
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Birthday emails sent to ${results.length} out of ${birthdayEmployees.length} employees`,
+      message: `Birthday emails sent to ${results.length} out of ${birthdayEmployees.length} employees. Reminder emails sent to ${reminderResults.length} colleagues.`,
       date: today.toISOString().split('T')[0],
-      sent: results,
-      failed: errors,
-      total: birthdayEmployees.length,
-      successCount: results.length,
-      failureCount: errors.length,
+      birthdayEmails: {
+        sent: results,
+        failed: errors,
+        total: birthdayEmployees.length,
+        successCount: results.length,
+        failureCount: errors.length,
+      },
+      reminderEmails: {
+        sent: reminderResults,
+        failed: reminderErrors,
+        total: reminderResults.length + reminderErrors.length,
+        successCount: reminderResults.length,
+        failureCount: reminderErrors.length,
+      },
     });
   } catch (error: any) {
     console.error('Error in automatic birthday email sending:', error);

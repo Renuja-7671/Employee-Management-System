@@ -43,10 +43,20 @@ import { toast } from 'sonner';
 import { getLeaves, approveLeave, declineLeave, Leave as LeaveAPI } from '@/lib/api/leaves';
 import { getEmployees, Employee as EmployeeAPI } from '@/lib/api/employees';
 
+interface CoveringDuty {
+  employeeName: string;
+  employeeId: string;
+  startDate: Date;
+  endDate: Date;
+  leaveType: string;
+  totalDays: number;
+}
+
 interface Leave extends LeaveAPI {
   userId: string;
   days: number;
   medicalCertUrl?: string | null;
+  coveringDuties?: CoveringDuty[];
 }
 
 interface Employee extends EmployeeAPI {
@@ -63,8 +73,18 @@ export function LeaveManagement() {
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [currentAdminType, setCurrentAdminType] = useState<string | null>(null);
+  const [currentAdminId, setCurrentAdminId] = useState<string>('');
 
   useEffect(() => {
+    // Get current admin info from localStorage
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      setCurrentAdminId(user.id);
+      setCurrentAdminType(user.adminType || null);
+    }
+
     fetchData();
   }, []);
 
@@ -119,14 +139,20 @@ export function LeaveManagement() {
       return;
     }
 
+    // Check if user is Managing Director
+    if (currentAdminType !== 'MANAGING_DIRECTOR') {
+      toast.error('Only Managing Director can approve or decline leave requests');
+      return;
+    }
+
     setSubmitting(true);
 
     try {
       let result;
       if (action === 'approve') {
-        result = await approveLeave(selectedLeave.id);
+        result = await approveLeave(selectedLeave.id, currentAdminId);
       } else {
-        result = await declineLeave(selectedLeave.id, reason);
+        result = await declineLeave(selectedLeave.id, currentAdminId, reason);
       }
 
       if (!result.success) {
@@ -307,9 +333,16 @@ export function LeaveManagement() {
                   </TableRow>
                 ) : (
                   filteredLeaves.map((leave) => (
-                    <TableRow key={leave.id}>
+                    <TableRow key={leave.id} className={leave.coveringDuties && leave.coveringDuties.length > 0 ? 'bg-amber-50' : ''}>
                       <TableCell className="font-medium">
-                        {getEmployeeName(leave.userId)}
+                        <div className="flex items-center gap-2">
+                          {getEmployeeName(leave.userId)}
+                          {leave.coveringDuties && leave.coveringDuties.length > 0 && (
+                            <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300 text-xs">
+                              ⚠️ Cover Conflict
+                            </Badge>
+                          )}
+                        </div>
                       </TableCell>
                       <TableCell className="capitalize">
                         {leave.leaveType}
@@ -328,7 +361,7 @@ export function LeaveManagement() {
                           : 'N/A'}
                       </TableCell>
                       <TableCell>
-                        {leave.leaveType === 'medical' &&
+                        {leave.leaveType === 'MEDICAL' &&
                         leave.medicalCertUrl ? (
                           <Button
                             size="sm"
@@ -352,6 +385,12 @@ export function LeaveManagement() {
                               size="sm"
                               className="bg-green-600 hover:bg-green-700"
                               onClick={() => handleAction(leave, 'approve')}
+                              disabled={currentAdminType !== 'MANAGING_DIRECTOR'}
+                              title={
+                                currentAdminType !== 'MANAGING_DIRECTOR'
+                                  ? 'Only Managing Director can approve leaves'
+                                  : 'Approve leave request'
+                              }
                             >
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Approve
@@ -360,6 +399,12 @@ export function LeaveManagement() {
                               size="sm"
                               variant="destructive"
                               onClick={() => handleAction(leave, 'decline')}
+                              disabled={currentAdminType !== 'MANAGING_DIRECTOR'}
+                              title={
+                                currentAdminType !== 'MANAGING_DIRECTOR'
+                                  ? 'Only Managing Director can decline leaves'
+                                  : 'Decline leave request'
+                              }
                             >
                               <XCircle className="h-3 w-3 mr-1" />
                               Decline
@@ -409,6 +454,40 @@ export function LeaveManagement() {
                     <div>
                       <span className="font-medium">Reason:</span>{' '}
                       {selectedLeave.reason}
+                    </div>
+                  )}
+                  {selectedLeave.coveringDuties && selectedLeave.coveringDuties.length > 0 && (
+                    <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-md">
+                      <div className="flex items-start gap-2">
+                        <div className="p-1 bg-amber-100 rounded">
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-amber-600" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <p className="font-semibold text-amber-800 text-sm mb-1">⚠️ Cover Duty Conflict</p>
+                          <p className="text-xs text-amber-700 mb-2">
+                            This employee is currently assigned as a cover employee for the following approved leave(s):
+                          </p>
+                          <ul className="space-y-1 text-xs text-amber-800">
+                            {selectedLeave.coveringDuties.map((duty, index) => (
+                              <li key={index} className="flex items-center gap-1">
+                                <span className="font-medium">•</span>
+                                <span>
+                                  <strong>{duty.employeeName}</strong> ({duty.employeeId}) - {duty.leaveType} leave for {duty.totalDays} day(s)
+                                  <br />
+                                  <span className="text-amber-600 ml-2">
+                                    {new Date(duty.startDate).toLocaleDateString()} to {new Date(duty.endDate).toLocaleDateString()}
+                                  </span>
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                          <p className="text-xs text-amber-700 mt-2 font-medium">
+                            Approving this leave will create a coverage gap. Consider declining or requesting a different cover employee.
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>

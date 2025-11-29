@@ -12,6 +12,38 @@ export async function POST(
     const { id } = await params;
     const body = await request.json();
 
+    // Verify that the request is from a Managing Director
+    if (!body.adminId) {
+      return NextResponse.json(
+        { error: 'Admin authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const admin = await prisma.user.findUnique({
+      where: { id: body.adminId },
+      select: {
+        id: true,
+        role: true,
+        adminType: true,
+      },
+    } as any);
+
+    if (!admin || admin.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Unauthorized: Only admins can decline leaves' },
+        { status: 403 }
+      );
+    }
+
+    // Only Managing Director can decline leaves
+    if (admin.adminType !== 'MANAGING_DIRECTOR') {
+      return NextResponse.json(
+        { error: 'Only Managing Director can decline leave requests' },
+        { status: 403 }
+      );
+    }
+
     if (!body.adminResponse) {
       return NextResponse.json(
         { error: 'Admin response is required for declining' },
@@ -49,6 +81,16 @@ export async function POST(
       });
     }
 
+    // Create notification for admin
+    await prisma.notification.create({
+      data: {
+        userId: body.adminId,
+        type: 'LEAVE_DECLINED',
+        title: '❌ Leave Declined',
+        message: `You declined ${employee?.firstName} ${employee?.lastName}'s leave request for ${leave.totalDays} day(s).`,
+      },
+    });
+
     // Send emails to all parties (don't wait for completion)
     if (employee) {
       const leaveTypeMap: any = {
@@ -56,6 +98,7 @@ export async function POST(
         CASUAL: 'Casual Leave',
         MEDICAL: 'Medical Leave',
         BUSINESS: 'Business Leave',
+        OFFICIAL: 'Official Leave',
       };
 
       const emailData = {

@@ -17,6 +17,13 @@ import {
   CardTitle,
   CardFooter,
 } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import { createAdminAccount } from '@/lib/api/auth';
 import { toast } from 'sonner';
@@ -28,6 +35,7 @@ export function SetupForm() {
     email: '',
     password: '',
     confirmPassword: '',
+    adminType: 'MANAGING_DIRECTOR' as 'MANAGING_DIRECTOR' | 'HR_HEAD',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -55,6 +63,7 @@ export function SetupForm() {
         name: formData.name,
         email: formData.email,
         password: formData.password,
+        adminType: formData.adminType,
       });
 
       if (result.success) {
@@ -85,7 +94,7 @@ export function SetupForm() {
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
             <Image
-              src="/images/logo.jpg"
+              src="/images/logo-dark.png"
               alt="Unique Industrial Solutions"
               width={64}
               height={64}
@@ -130,6 +139,31 @@ export function SetupForm() {
                 required
                 autoComplete="email"
               />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="adminType">Admin Type</Label>
+              <Select
+                value={formData.adminType}
+                onValueChange={(value: 'MANAGING_DIRECTOR' | 'HR_HEAD') =>
+                  setFormData({ ...formData, adminType: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select admin type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="MANAGING_DIRECTOR">
+                    Managing Director
+                  </SelectItem>
+                  <SelectItem value="HR_HEAD">
+                    HR Head
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500">
+                Choose the role for this administrator
+              </p>
             </div>
 
             <div className="space-y-2">

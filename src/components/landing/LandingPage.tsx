@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -32,14 +32,35 @@ import { useAuth } from '@/lib/hooks/use-auth';
 
 const SETUP_PASSWORD = process.env.NEXT_PUBLIC_SETUP_PASSWORD || 'UIS_ADMIN_2025';
 
+// Slideshow images
+const SLIDESHOW_IMAGES = [
+  '/images/banner1.png',
+  '/images/banner2.png',
+  '/images/banner3.png',
+  '/images/banner4.png',
+  '/images/banner5.png',
+];
+
 export function LandingPage() {
   const router = useRouter();
   const { user, profile, logout } = useAuth();
   const [showPasswordDialog, setShowPasswordDialog] = useState(false);
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   const isLoggedIn = !!user && !!profile;
+
+  // Auto-advance slideshow every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) =>
+        (prevIndex + 1) % SLIDESHOW_IMAGES.length
+      );
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   const handlePasswordSubmit = () => {
     if (password === SETUP_PASSWORD) {
@@ -67,10 +88,10 @@ export function LandingPage() {
             {/* Logo Section */}
             <div className="flex items-center gap-2 sm:gap-3">
               <Image
-                src="/images/logo.jpg"
+                src="/images/logo-light.png"
                 alt="Unique Industrial Solutions"
-                width={56}
-                height={56}
+                width={100}
+                height={100}
                 className="h-10 sm:h-14 w-auto rounded-lg"
                 priority
               />
@@ -133,20 +154,30 @@ export function LandingPage() {
       {/* Hero Section */}
       <div className="pt-20 sm:pt-24 md:pt-28 relative">
         <div className="relative h-[400px] sm:h-[500px] md:h-[600px] lg:h-[650px] overflow-hidden rounded-b-3xl sm:rounded-b-[3rem]">
-          {/* Hero Image */}
-          <Image
-            src="/images/hero.jpg"
-            alt="Unique Industrial Solutions"
-            fill
-            className="object-cover"
-            priority
-          />
+          {/* Slideshow Images */}
+          {SLIDESHOW_IMAGES.map((image, index) => (
+            <div
+              key={image}
+              className={`absolute inset-0 transition-opacity duration-1000 ${
+                index === currentImageIndex ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <Image
+                src={image}
+                alt={`Unique Industrial Solutions Banner ${index + 1}`}
+                fill
+                className="object-cover object-center"
+                priority={index === 0}
+                sizes="100vw"
+              />
+            </div>
+          ))}
 
           {/* Overlay for better text readability */}
-          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30 sm:from-black/60 sm:via-black/40 sm:to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/30 sm:from-black/60 sm:via-black/40 sm:to-transparent z-10" />
 
           {/* Hero Content */}
-          <div className="absolute inset-0 flex items-center">
+          <div className="absolute inset-0 flex items-center z-20">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
               <div className="max-w-2xl">
                 <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 sm:mb-6 leading-tight">
@@ -303,7 +334,7 @@ export function LandingPage() {
           <div className="flex flex-col md:flex-row justify-between items-center gap-6 sm:gap-4">
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <Image
-                src="/images/logo.jpg"
+                src="/images/logo-light.png"
                 alt="Unique Industrial Solutions"
                 width={48}
                 height={48}

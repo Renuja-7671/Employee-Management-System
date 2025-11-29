@@ -17,7 +17,12 @@ export async function GET(request: NextRequest) {
 
     const currentAdmin = await prisma.user.findUnique({
       where: { id: currentAdminId },
-    });
+      select: {
+        id: true,
+        role: true,
+        adminType: true,
+      },
+    } as any);
 
     if (!currentAdmin || currentAdmin.role !== 'ADMIN') {
       return NextResponse.json(
@@ -35,6 +40,7 @@ export async function GET(request: NextRequest) {
         employeeId: true,
         firstName: true,
         lastName: true,
+        adminType: true,
         department: true,
         position: true,
         isActive: true,
@@ -43,11 +49,12 @@ export async function GET(request: NextRequest) {
       orderBy: {
         createdAt: 'asc',
       },
-    });
+    } as any);
 
-    const adminsWithNames = admins.map(admin => ({
+    const adminsWithNames = admins.map((admin: any) => ({
       ...admin,
       name: `${admin.firstName} ${admin.lastName}`,
+      canDelete: canDeleteAdmin(currentAdmin.adminType, admin.adminType, admin.id, currentAdminId),
     }));
 
     return NextResponse.json({
@@ -62,4 +69,37 @@ export async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Helper function to determine if an admin can delete another
+function canDeleteAdmin(
+  currentAdminType: string | null,
+  targetAdminType: string | null,
+  targetAdminId: string,
+  currentAdminId: string
+): boolean {
+  // Cannot delete yourself
+  if (targetAdminId === currentAdminId) {
+    return false;
+  }
+
+  // Managing Director can delete HR Head and Reserved admin
+  if (
+    currentAdminType === 'MANAGING_DIRECTOR' &&
+    (targetAdminType === 'HR_HEAD' || targetAdminType === 'RESERVED')
+  ) {
+    return true;
+  }
+
+  // HR Head can only delete Reserved admin (NOT Managing Director)
+  if (currentAdminType === 'HR_HEAD' && targetAdminType === 'RESERVED') {
+    return true;
+  }
+
+  // Reserved admin cannot delete anyone
+  if (currentAdminType === 'RESERVED') {
+    return false;
+  }
+
+  return false;
 }

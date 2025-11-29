@@ -3,11 +3,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
-import { X, Bell, CheckCheck } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
+import { X, Bell, CheckCheck, Pin, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface Notification {
   id: string;
@@ -15,7 +17,9 @@ interface Notification {
   title: string;
   message: string;
   isRead: boolean;
+  isPinned: boolean;
   createdAt: string;
+  relatedId?: string | null;
 }
 
 interface NotificationPanelProps {
@@ -32,62 +36,127 @@ export function NotificationPanel({
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchNotifications();
-  }, [userId]);
-
   const fetchNotifications = async () => {
     try {
-      // TODO: Implement API call to fetch notifications
-      // For now, return empty array
-      setNotifications([]);
-      setLoading(false);
+      const response = await fetch(`/api/notifications?userId=${userId}`);
+      const data = await response.json();
 
-      const unreadCount = 0;
-      if (onUnreadCountChange) {
-        onUnreadCountChange(unreadCount);
+      if (data.notifications) {
+        setNotifications(data.notifications);
+        const unreadCount = data.notifications.filter((n: Notification) => !n.isRead).length;
+        if (onUnreadCountChange) {
+          onUnreadCountChange(unreadCount);
+        }
       }
+      setLoading(false);
     } catch (error) {
       console.error('Error fetching notifications:', error);
+      toast.error('Failed to load notifications');
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchNotifications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const markAsRead = async (notificationId: string) => {
     try {
-      // TODO: Implement API call to mark notification as read
-      setNotifications((prev) =>
-        prev.map((n) =>
-          n.id === notificationId ? { ...n, isRead: true } : n
-        )
-      );
+      const response = await fetch(`/api/notifications/${notificationId}/read`, {
+        method: 'POST',
+      });
 
-      const unreadCount = notifications.filter(
-        (n) => !n.isRead && n.id !== notificationId
-      ).length;
-      if (onUnreadCountChange) {
-        onUnreadCountChange(unreadCount);
+      if (response.ok) {
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.id === notificationId ? { ...n, isRead: true } : n
+          )
+        );
+
+        const unreadCount = notifications.filter(
+          (n) => !n.isRead && n.id !== notificationId
+        ).length;
+        if (onUnreadCountChange) {
+          onUnreadCountChange(unreadCount);
+        }
+        toast.success('Notification marked as read');
       }
     } catch (error) {
       console.error('Error marking notification as read:', error);
+      toast.error('Failed to mark as read');
     }
   };
 
-  const markAllAsRead = async () => {
+  const togglePin = async (notificationId: string) => {
     try {
-      // TODO: Implement API call to mark all notifications as read
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+      const notification = notifications.find(n => n.id === notificationId);
 
-      if (onUnreadCountChange) {
-        onUnreadCountChange(0);
+      // Ensure notification is read before pinning
+      if (notification && !notification.isRead) {
+        toast.error('Please mark as read before pinning');
+        return;
+      }
+
+      const response = await fetch(`/api/notifications/${notificationId}/pin`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications((prev) =>
+          prev.map((n) =>
+            n.id === notificationId ? { ...n, isPinned: data.notification.isPinned } : n
+          )
+        );
+        toast.success(data.notification.isPinned ? 'Notification pinned' : 'Notification unpinned');
       }
     } catch (error) {
-      console.error('Error marking all notifications as read:', error);
+      console.error('Error toggling pin:', error);
+      toast.error('Failed to toggle pin');
+    }
+  };
+
+  const clearNotification = async (notificationId: string) => {
+    try {
+      const response = await fetch(`/api/notifications/${notificationId}/clear`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+        toast.success('Notification cleared');
+
+        // Update unread count
+        const unreadCount = notifications.filter(
+          (n) => !n.isRead && n.id !== notificationId
+        ).length;
+        if (onUnreadCountChange) {
+          onUnreadCountChange(unreadCount);
+        }
+      }
+    } catch (error) {
+      console.error('Error clearing notification:', error);
+      toast.error('Failed to clear notification');
     }
   };
 
   const getNotificationIcon = (type: string) => {
-    return <Bell className="h-4 w-4" />;
+    const iconClass = "h-4 w-4";
+    switch (type) {
+      case 'COVER_REQUEST':
+        return <Bell className={iconClass + " text-blue-600"} />;
+      case 'COVER_ACCEPTED':
+        return <CheckCheck className={iconClass + " text-green-600"} />;
+      case 'COVER_DECLINED':
+        return <X className={iconClass + " text-red-600"} />;
+      case 'LEAVE_APPROVED':
+        return <CheckCheck className={iconClass + " text-green-600"} />;
+      case 'LEAVE_DECLINED':
+        return <X className={iconClass + " text-red-600"} />;
+      default:
+        return <Bell className={iconClass} />;
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -97,7 +166,9 @@ export function NotificationPanel({
       (now.getTime() - date.getTime()) / (1000 * 60)
     );
 
-    if (diffInMinutes < 60) {
+    if (diffInMinutes < 1) {
+      return 'Just now';
+    } else if (diffInMinutes < 60) {
       return `${diffInMinutes}m ago`;
     } else if (diffInMinutes < 1440) {
       return `${Math.floor(diffInMinutes / 60)}h ago`;
@@ -106,73 +177,144 @@ export function NotificationPanel({
     }
   };
 
+  const pinnedNotifications = notifications.filter(n => n.isPinned);
+  const unpinnedNotifications = notifications.filter(n => !n.isPinned);
+
+  const renderNotificationItem = (notification: Notification, showPinIcon: boolean = true) => (
+    <div
+      key={notification.id}
+      className={`p-4 hover:bg-gray-50 transition-colors ${
+        !notification.isRead ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+      }`}
+    >
+      <div className="flex gap-3">
+        <div className="mt-1">
+          {getNotificationIcon(notification.type)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <p className="text-sm font-medium text-gray-900">
+                {notification.title}
+              </p>
+              {!notification.isRead && (
+                <Badge className="h-2 w-2 p-0 bg-blue-600" />
+              )}
+              {notification.isPinned && showPinIcon && (
+                <Pin className="h-3 w-3 text-amber-600 fill-amber-600" />
+              )}
+            </div>
+          </div>
+          <p className="text-sm text-gray-600 mt-1">
+            {notification.message}
+          </p>
+          <div className="flex items-center justify-between mt-3">
+            <p className="text-xs text-gray-400">
+              {formatDate(notification.createdAt)}
+            </p>
+            <div className="flex gap-1">
+              {!notification.isRead ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => markAsRead(notification.id)}
+                  className="h-7 text-xs"
+                >
+                  <CheckCheck className="h-3 w-3 mr-1" />
+                  Mark as read
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => togglePin(notification.id)}
+                    className="h-7 text-xs"
+                  >
+                    <Pin className={`h-3 w-3 mr-1 ${notification.isPinned ? 'fill-amber-600 text-amber-600' : ''}`} />
+                    {notification.isPinned ? 'Unpin' : 'Pin'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => clearNotification(notification.id)}
+                    className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                  >
+                    <Trash2 className="h-3 w-3 mr-1" />
+                    Clear
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
-    <Card className="absolute right-0 top-12 w-96 shadow-lg z-50">
-      <div className="p-4 border-b flex justify-between items-center">
-        <h3 className="font-semibold">Notifications</h3>
-        <div className="flex gap-2">
-          {notifications.some((n) => !n.isRead) && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={markAllAsRead}
-              className="text-xs"
-            >
-              <CheckCheck className="h-3 w-3 mr-1" />
-              Mark all read
-            </Button>
-          )}
-          <Button variant="ghost" size="icon" onClick={onClose}>
+    <Card className="absolute right-0 top-12 w-[450px] shadow-lg z-50 max-h-[600px] flex flex-col">
+      <CardHeader className="p-4 border-b">
+        <div className="flex justify-between items-center">
+          <CardTitle className="text-base">Notifications</CardTitle>
+          <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8">
             <X className="h-4 w-4" />
           </Button>
         </div>
-      </div>
+      </CardHeader>
 
-      <ScrollArea className="h-96">
-        {loading ? (
-          <div className="p-4 text-center text-sm text-gray-500">
-            Loading notifications...
-          </div>
-        ) : notifications.length === 0 ? (
-          <div className="p-8 text-center">
-            <Bell className="h-12 w-12 mx-auto text-gray-300 mb-2" />
-            <p className="text-sm text-gray-500">No notifications</p>
-          </div>
-        ) : (
-          <div className="divide-y">
-            {notifications.map((notification) => (
-              <div
-                key={notification.id}
-                className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                  !notification.isRead ? 'bg-blue-50' : ''
-                }`}
-                onClick={() => markAsRead(notification.id)}
-              >
-                <div className="flex gap-3">
-                  <div className="mt-1">
-                    {getNotificationIcon(notification.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm text-gray-700 font-medium text-gray-900">
-                        {notification.title}
-                      </p>
-                      {!notification.isRead && (
-                        <Badge className="h-2 w-2 p-0 bg-blue-600" />
-                      )}
+      <ScrollArea className="flex-1">
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="p-8 text-center text-sm text-gray-500">
+              Loading notifications...
+            </div>
+          ) : notifications.length === 0 ? (
+            <div className="p-8 text-center">
+              <Bell className="h-12 w-12 mx-auto text-gray-300 mb-2" />
+              <p className="text-sm text-gray-500">No notifications</p>
+            </div>
+          ) : (
+            <>
+              {/* Pinned Notifications Section */}
+              {pinnedNotifications.length > 0 && (
+                <div>
+                  <div className="bg-amber-50 px-4 py-2 border-b border-amber-100">
+                    <div className="flex items-center gap-2">
+                      <Pin className="h-4 w-4 text-amber-700 fill-amber-700" />
+                      <span className="text-sm font-semibold text-amber-900">
+                        Pinned Notifications
+                      </span>
+                      <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+                        {pinnedNotifications.length}
+                      </Badge>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">
-                      {notification.message}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-2">
-                      {formatDate(notification.createdAt)}
-                    </p>
+                  </div>
+                  <div className="divide-y">
+                    {pinnedNotifications.map((notification) => renderNotificationItem(notification, false))}
+                  </div>
+                  <Separator className="my-2" />
+                </div>
+              )}
+
+              {/* Regular Notifications Section */}
+              {unpinnedNotifications.length > 0 && (
+                <div>
+                  {pinnedNotifications.length > 0 && (
+                    <div className="bg-gray-50 px-4 py-2 border-b">
+                      <span className="text-sm font-semibold text-gray-700">
+                        Recent Notifications
+                      </span>
+                    </div>
+                  )}
+                  <div className="divide-y">
+                    {unpinnedNotifications.map((notification) => renderNotificationItem(notification))}
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              )}
+            </>
+          )}
+        </CardContent>
       </ScrollArea>
     </Card>
   );

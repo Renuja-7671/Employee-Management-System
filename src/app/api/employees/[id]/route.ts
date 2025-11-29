@@ -56,6 +56,7 @@ export async function PUT(
 
     if (body.firstName !== undefined) updateData.firstName = body.firstName;
     if (body.lastName !== undefined) updateData.lastName = body.lastName;
+    if (body.nameWithInitials !== undefined) updateData.nameWithInitials = body.nameWithInitials;
     if (body.email !== undefined) updateData.email = body.email;
     if (body.phoneNumber !== undefined) updateData.phoneNumber = body.phoneNumber;
     if (body.position !== undefined) updateData.position = body.position;
@@ -76,6 +77,7 @@ export async function PUT(
         employeeId: true,
         firstName: true,
         lastName: true,
+        nameWithInitials: true,
         department: true,
         position: true,
         phoneNumber: true,
@@ -85,7 +87,7 @@ export async function PUT(
         dateOfJoining: true,
         isActive: true,
       },
-    });
+    } as any);
 
     return NextResponse.json({ employee });
   } catch (error: any) {

@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { existsSync } from 'fs';
-import path from 'path';
+import { supabase } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,29 +39,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create upload directory if it doesn't exist
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'medical-certs');
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true });
-    }
-
     // Generate unique filename
     const timestamp = Date.now();
     const fileExtension = file.name.split('.').pop();
     const fileName = `${userId}_${timestamp}.${fileExtension}`;
-    const filePath = path.join(uploadDir, fileName);
 
-    // Convert file to buffer and save
+    // Convert file to buffer
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
 
-    // Generate URL for the uploaded file
-    const fileUrl = `/uploads/medical-certs/${fileName}`;
+    // Upload to Supabase storage
+    const { error } = await supabase.storage
+      .from('medicalCertificates')
+      .upload(fileName, buffer, {
+        contentType: file.type,
+        upsert: false,
+      });
+
+    if (error) {
+      console.error('Supabase upload error:', error);
+      return NextResponse.json(
+        { error: `Failed to upload to storage: ${error.message}` },
+        { status: 500 }
+      );
+    }
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('medicalCertificates')
+      .getPublicUrl(fileName);
+
+    const publicUrl = urlData.publicUrl;
 
     return NextResponse.json({
       message: 'File uploaded successfully',
-      url: fileUrl,
+      url: publicUrl,
       fileName: fileName,
     });
   } catch (error) {

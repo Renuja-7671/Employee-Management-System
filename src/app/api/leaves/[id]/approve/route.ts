@@ -12,6 +12,38 @@ export async function POST(
     const { id } = await params;
     const body = await request.json();
 
+    // Verify that the request is from a Managing Director
+    if (!body.adminId) {
+      return NextResponse.json(
+        { error: 'Admin authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const admin = await prisma.user.findUnique({
+      where: { id: body.adminId },
+      select: {
+        id: true,
+        role: true,
+        adminType: true,
+      },
+    } as any);
+
+    if (!admin || admin.role !== 'ADMIN') {
+      return NextResponse.json(
+        { error: 'Unauthorized: Only admins can approve leaves' },
+        { status: 403 }
+      );
+    }
+
+    // Only Managing Director can approve leaves
+    if (admin.adminType !== 'MANAGING_DIRECTOR') {
+      return NextResponse.json(
+        { error: 'Only Managing Director can approve leave requests' },
+        { status: 403 }
+      );
+    }
+
     // Get the leave details first
     const existingLeave = await prisma.leave.findUnique({
       where: { id },
@@ -33,28 +65,29 @@ export async function POST(
       },
     });
 
-    // Deduct leave balance only for annual and casual leaves (medical is unlimited)
+    // Deduct leave balance only for annual and casual leaves (medical and official are unlimited)
     if (leave.leaveType === 'ANNUAL' || leave.leaveType === 'CASUAL') {
-      const currentYear = new Date().getFullYear();
+      // Deduct from the year when the leave is taken (not current year)
+      const leaveYear = new Date(leave.startDate).getFullYear();
 
-      // Find or create leave balance
+      // Find or create leave balance for the leave year
       let leaveBalance = await prisma.leaveBalance.findFirst({
         where: {
           employeeId: leave.employeeId,
-          year: currentYear,
+          year: leaveYear,
         },
       });
 
       if (!leaveBalance) {
-        // Create default leave balance if it doesn't exist
+        // Create default leave balance if it doesn't exist for that year
         leaveBalance = await prisma.leaveBalance.create({
           data: {
             employeeId: leave.employeeId,
-            year: currentYear,
+            year: leaveYear,
             annual: 14,
             casual: 7,
             medical: 0,
-            business: 0,
+            official: 0,
           },
         });
       }
@@ -94,6 +127,16 @@ export async function POST(
       });
     }
 
+    // Create notification for admin
+    await prisma.notification.create({
+      data: {
+        userId: body.adminId,
+        type: 'LEAVE_APPROVED',
+        title: '✅ Leave Approved',
+        message: `You approved ${employee?.firstName} ${employee?.lastName}'s leave request for ${leave.totalDays} day(s).`,
+      },
+    });
+
     // Send emails to all parties (don't wait for completion)
     if (employee) {
       const leaveTypeMap: any = {
@@ -101,6 +144,7 @@ export async function POST(
         CASUAL: 'Casual Leave',
         MEDICAL: 'Medical Leave',
         BUSINESS: 'Business Leave',
+        OFFICIAL: 'Official Leave',
       };
 
       const emailData = {

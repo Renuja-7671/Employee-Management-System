@@ -126,6 +126,7 @@ export async function updateLeave(
 
 export async function approveLeave(
   id: string,
+  adminId: string,
   adminResponse?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -134,7 +135,7 @@ export async function approveLeave(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ adminResponse }),
+      body: JSON.stringify({ adminId, adminResponse }),
     });
 
     const data = await response.json();
@@ -159,6 +160,7 @@ export async function approveLeave(
 
 export async function declineLeave(
   id: string,
+  adminId: string,
   adminResponse: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -167,7 +169,7 @@ export async function declineLeave(
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ adminResponse }),
+      body: JSON.stringify({ adminId, adminResponse }),
     });
 
     const data = await response.json();

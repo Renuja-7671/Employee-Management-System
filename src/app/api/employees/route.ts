@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
+import { sendNewEmployeeEmails } from '@/lib/employee-emails';
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
         employeeId: true,
         firstName: true,
         lastName: true,
+        nameWithInitials: true,
         department: true,
         position: true,
         phoneNumber: true,
@@ -26,7 +28,7 @@ export async function GET(request: NextRequest) {
         dateOfJoining: true,
         isActive: true,
       },
-    });
+    } as any);
 
     return NextResponse.json({ employees });
   } catch (error) {
@@ -50,6 +52,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Store the plain password before hashing (for email only)
+    const plainPassword = body.password;
+
     // Hash the password
     const hashedPassword = await bcrypt.hash(body.password, 10);
 
@@ -60,17 +65,38 @@ export async function POST(request: NextRequest) {
         employeeId: body.employeeId,
         firstName: body.firstName,
         lastName: body.lastName,
+        nameWithInitials: body.nameWithInitials || null,
         department: body.department,
         position: body.position,
         phoneNumber: body.phoneNumber,
         birthday: body.birthday ? new Date(body.birthday) : null,
         address: body.address || null,
         emergencyContact: body.emergencyContact || null,
+        profilePicture: body.profilePicture || null,
         role: 'EMPLOYEE',
         isActive: true,
         dateOfJoining: new Date(),
       },
-    });
+    } as any);
+
+    // Send welcome email with account credentials (don't wait for completion)
+    const emailData = {
+      employeeName: `${employee.firstName} ${employee.lastName}`,
+      employeeEmail: employee.email,
+      employeeId: employee.employeeId,
+      password: plainPassword,
+      department: employee.department || 'Not specified',
+      position: employee.position || 'Not specified',
+    };
+
+    // Send emails asynchronously (don't block the response)
+    sendNewEmployeeEmails(emailData)
+      .then((results) => {
+        console.log('New employee emails sent:', results);
+      })
+      .catch((error) => {
+        console.error('Error sending new employee emails:', error);
+      });
 
     return NextResponse.json({ employee }, { status: 201 });
   } catch (error: any) {

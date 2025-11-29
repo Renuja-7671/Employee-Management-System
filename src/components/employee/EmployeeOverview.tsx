@@ -15,6 +15,10 @@ export function EmployeeOverview({ user }: EmployeeOverviewProps) {
     casual: 0,
     medical: 0,
   });
+  const [leaveCounts, setLeaveCounts] = useState({
+    medicalLeaveTaken: 0,
+    officialLeaveTaken: 0,
+  });
   const [stats, setStats] = useState({
     pendingLeaves: 0,
     approvedLeaves: 0,
@@ -43,6 +47,7 @@ export function EmployeeOverview({ user }: EmployeeOverviewProps) {
       if (balanceResponse.ok) {
         const balanceData = await balanceResponse.json();
         setLeaveBalance(balanceData.balance || { annual: 0, casual: 0, medical: 0 });
+        setLeaveCounts(balanceData.counts || { medicalLeaveTaken: 0, officialLeaveTaken: 0 });
       }
 
       if (leavesResponse.ok) {
@@ -86,7 +91,7 @@ export function EmployeeOverview({ user }: EmployeeOverviewProps) {
   return (
     <div className="space-y-6">
       {/* Leave Balance Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm">Annual Leave</CardTitle>
@@ -121,16 +126,29 @@ export function EmployeeOverview({ user }: EmployeeOverviewProps) {
             <AlertCircle className="h-4 w-4 text-orange-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl">Unlimited</div>
+            <div className="text-2xl">{leaveCounts.medicalLeaveTaken}</div>
             <p className="text-xs text-muted-foreground mt-2">
-              Medical certificate required
+              leaves taken this year
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm">Official Leave</CardTitle>
+            <Calendar className="h-4 w-4 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl">{leaveCounts.officialLeaveTaken}</div>
+            <p className="text-xs text-muted-foreground mt-2">
+              leaves taken this year
             </p>
           </CardContent>
         </Card>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm">Pending Requests</CardTitle>
@@ -139,17 +157,6 @@ export function EmployeeOverview({ user }: EmployeeOverviewProps) {
           <CardContent>
             <div className="text-2xl">{stats.pendingLeaves}</div>
             <p className="text-xs text-muted-foreground">Awaiting approval</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Approved Leaves</CardTitle>
-            <Calendar className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{stats.approvedLeaves}</div>
-            <p className="text-xs text-muted-foreground">This year</p>
           </CardContent>
         </Card>
 
@@ -175,7 +182,7 @@ export function EmployeeOverview({ user }: EmployeeOverviewProps) {
             <Calendar className="h-5 w-5 text-blue-600 mt-0.5" />
             <div>
               <p className="text-sm">Annual Leave Limit</p>
-              <p className="text-xs text-gray-600">Maximum 7 continuous days per request</p>
+              <p className="text-xs text-gray-600">Maximum 3 continuous days per request</p>
             </div>
           </div>
           <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">

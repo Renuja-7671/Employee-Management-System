@@ -59,7 +59,7 @@ export function LoginForm() {
           <div className="flex justify-between items-center h-16 sm:h-20">
             <div className="flex items-center gap-2 sm:gap-3">
               <Image
-                src="/images/logo.jpg"
+                src="/images/logo-dark.png"
                 alt="Unique Industrial Solutions"
                 width={56}
                 height={56}
@@ -113,7 +113,7 @@ export function LoginForm() {
           <div className="relative z-10">
             <div className="flex items-center gap-4 mb-8">
               <Image
-                src="/images/logo.jpg"
+                src="/images/logo-light.png"
                 alt="Unique Industrial Solutions"
                 width={80}
                 height={80}
@@ -165,7 +165,7 @@ export function LoginForm() {
             {/* Mobile Logo */}
             <div className="lg:hidden flex flex-col items-center mb-6 sm:mb-8">
               <Image
-                src="/images/logo.jpg"
+                src="/images/logo-dark.png"
                 alt="Unique Industrial Solutions"
                 width={80}
                 height={80}
@@ -243,7 +243,7 @@ export function LoginForm() {
                         <p className="leading-relaxed">{error}</p>
                         {error.includes('Invalid') && (
                           <p className="mt-2 text-xs text-red-600 leading-relaxed">
-                            Don't have an account? Contact your administrator to
+                            Don&apos;t have an account? Contact your administrator to
                             get set up, or use the Admin Setup link in the
                             footer to create the initial admin account.
                           </p>

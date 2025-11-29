@@ -57,8 +57,12 @@ export function EmployeeManagement() {
   const [showInactive, setShowInactive] = useState(false);
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [nextEmployeeId, setNextEmployeeId] = useState('');
+  const [profilePicture, setProfilePicture] = useState<File | null>(null);
+  const [profilePicturePreview, setProfilePicturePreview] = useState<string>('');
   const [formData, setFormData] = useState({
     name: '',
+    nameWithInitials: '',
     email: '',
     password: '',
     employeeId: '',
@@ -73,6 +77,12 @@ export function EmployeeManagement() {
   useEffect(() => {
     fetchEmployees();
   }, []);
+
+  useEffect(() => {
+    if (showAddDialog) {
+      fetchNextEmployeeId();
+    }
+  }, [showAddDialog]);
 
   const fetchEmployees = async () => {
     try {
@@ -91,31 +101,88 @@ export function EmployeeManagement() {
     }
   };
 
+  const fetchNextEmployeeId = async () => {
+    try {
+      const response = await fetch('/api/employees/next-id', {
+        cache: 'no-store',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setNextEmployeeId(data.nextId);
+        setFormData(prev => ({
+          ...prev,
+          employeeId: data.nextId,
+        }));
+      }
+    } catch (error) {
+      console.error('Error fetching next employee ID:', error);
+      toast.error('Failed to generate employee ID');
+    }
+  };
+
+  const handleProfilePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file');
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      setProfilePicture(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfilePicturePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
 
     try {
-      // Check if employeeId already exists
-      const existingEmployee = employees.find(
-        (emp) => emp.employeeId === formData.employeeId
-      );
-
-      if (existingEmployee) {
-        toast.error(`Employee ID "${formData.employeeId}" already exists. Please use a different ID.`);
-        setSubmitting(false);
-        return;
-      }
-
       // Split name into firstName and lastName
       const nameParts = formData.name.trim().split(' ');
       const firstName = nameParts[0] || '';
       const lastName = nameParts.slice(1).join(' ') || nameParts[0] || '';
 
+      // Handle profile picture upload if present
+      let profilePicturePath = null;
+      if (profilePicture) {
+        const formDataUpload = new FormData();
+        formDataUpload.append('file', profilePicture);
+        formDataUpload.append('employeeId', formData.employeeId);
+
+        try {
+          const uploadResponse = await fetch('/api/upload/profile-picture', {
+            method: 'POST',
+            body: formDataUpload,
+          });
+
+          if (uploadResponse.ok) {
+            const uploadData = await uploadResponse.json();
+            profilePicturePath = uploadData.path;
+          } else {
+            toast.error('Failed to upload profile picture');
+          }
+        } catch (uploadError) {
+          console.error('Error uploading profile picture:', uploadError);
+          toast.error('Failed to upload profile picture');
+        }
+      }
+
       // Prepare employee data for API
       const employeeData = {
         firstName,
         lastName,
+        nameWithInitials: formData.nameWithInitials || null,
         email: formData.email,
         password: formData.password,
         employeeId: formData.employeeId,
@@ -125,6 +192,7 @@ export function EmployeeManagement() {
         birthday: formData.birthday || null,
         address: formData.address || null,
         emergencyContact: formData.emergencyContact || null,
+        profilePicture: profilePicturePath,
       };
 
       const result = await createEmployee(employeeData);
@@ -134,6 +202,7 @@ export function EmployeeManagement() {
         setShowAddDialog(false);
         setFormData({
           name: '',
+          nameWithInitials: '',
           email: '',
           password: '',
           employeeId: '',
@@ -144,6 +213,8 @@ export function EmployeeManagement() {
           position: '',
           emergencyContact: '',
         });
+        setProfilePicture(null);
+        setProfilePicturePreview('');
         fetchEmployees();
       } else {
         // Check if error is about duplicate employeeId
@@ -278,6 +349,33 @@ export function EmployeeManagement() {
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleAddEmployee} className="space-y-4">
+                    {/* Profile Picture Upload */}
+                    <div className="space-y-2">
+                      <Label htmlFor="profilePicture">Profile Picture</Label>
+                      <div className="flex items-center gap-4">
+                        {profilePicturePreview && (
+                          <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-gray-200">
+                            <img
+                              src={profilePicturePreview}
+                              alt="Profile preview"
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                        )}
+                        <div className="flex-1">
+                          <Input
+                            id="profilePicture"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleProfilePictureChange}
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            Upload employee profile picture (Max 5MB, JPG/PNG)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="employeeId">
@@ -285,18 +383,14 @@ export function EmployeeManagement() {
                         </Label>
                         <Input
                           id="employeeId"
-                          placeholder="EMP001"
+                          placeholder="Loading..."
                           value={formData.employeeId}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              employeeId: e.target.value,
-                            })
-                          }
-                          required
+                          readOnly
+                          disabled
+                          className="bg-gray-50 cursor-not-allowed"
                         />
                         <p className="text-xs text-gray-500">
-                          Must be unique (e.g., EMP001, EMP002)
+                          Auto-generated employee ID
                         </p>
                       </div>
                       <div className="space-y-2">
@@ -305,10 +399,24 @@ export function EmployeeManagement() {
                         </Label>
                         <Input
                           id="name"
-                          placeholder="John Doe"
+                          placeholder="Don Malinda Perera"
                           value={formData.name}
                           onChange={(e) =>
                             setFormData({ ...formData, name: e.target.value })
+                          }
+                          required
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="nameWithInitials">
+                          Name with Initials <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="nameWithInitials"
+                          placeholder="e.g., D.M. Perera"
+                          value={formData.nameWithInitials}
+                          onChange={(e) =>
+                            setFormData({ ...formData, nameWithInitials: e.target.value })
                           }
                           required
                         />
@@ -320,7 +428,7 @@ export function EmployeeManagement() {
                         <Input
                           id="email"
                           type="email"
-                          placeholder="john@example.com"
+                          placeholder="malinda@example.com"
                           value={formData.email}
                           onChange={(e) =>
                             setFormData({ ...formData, email: e.target.value })
@@ -377,14 +485,13 @@ export function EmployeeManagement() {
                             <SelectValue placeholder="Select department" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="ENGINEERING">Engineering</SelectItem>
-                            <SelectItem value="OPERATIONS">Operations</SelectItem>
-                            <SelectItem value="QUALITY_CONTROL">Quality Control</SelectItem>
-                            <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
-                            <SelectItem value="ADMINISTRATION">Administration</SelectItem>
-                            <SelectItem value="HR">Human Resources</SelectItem>
+                            <SelectItem value="MANAGEMENT">Management</SelectItem>
+                            <SelectItem value="SALES_AND_MARKETING">Sales & Marketing</SelectItem>
                             <SelectItem value="FINANCE">Finance</SelectItem>
-                            <SelectItem value="LOGISTICS">Logistics</SelectItem>
+                            <SelectItem value="STORES">Stores</SelectItem>
+                            <SelectItem value="PROCUREMENT">Procurement</SelectItem>
+                            <SelectItem value="HR">Human Resources</SelectItem>
+                            <SelectItem value="IT">IT</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

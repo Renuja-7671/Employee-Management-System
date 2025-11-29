@@ -33,7 +33,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { UserPlus, Trash2, Shield, Mail, Calendar } from 'lucide-react';
+import { UserPlus, Trash2, Shield, Mail, Calendar, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Admin {
@@ -41,10 +41,12 @@ interface Admin {
   name: string;
   email: string;
   employeeId: string;
+  adminType: string | null;
   department: string;
   position: string;
   isActive: boolean;
   createdAt: string;
+  canDelete: boolean;
 }
 
 export function AdminManagement() {
@@ -52,15 +54,28 @@ export function AdminManagement() {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [adminToRemove, setAdminToRemove] = useState<Admin | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [currentAdmin, setCurrentAdmin] = useState<Admin | null>(null);
 
   // Form state
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
+    confirmPassword: '',
+  });
+
+  // Edit form state
+  const [editFormData, setEditFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    currentPassword: '',
+    newPassword: '',
     confirmPassword: '',
   });
 
@@ -86,6 +101,12 @@ export function AdminManagement() {
       if (response.ok) {
         const data = await response.json();
         setAdmins(data.admins);
+
+        // Set current admin data
+        const current = data.admins.find((admin: Admin) => admin.id === user.id);
+        if (current) {
+          setCurrentAdmin(current);
+        }
       } else {
         toast.error('Failed to fetch admin list');
       }
@@ -94,6 +115,121 @@ export function AdminManagement() {
       toast.error('An error occurred while fetching admins');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEditProfile = async (admin: Admin) => {
+    try {
+      // Fetch full user data from API
+      const response = await fetch(`/api/employees/${admin.id}`);
+
+      if (response.ok) {
+        const data = await response.json();
+        const employee = data.employee;
+
+        setEditFormData({
+          firstName: employee.firstName || '',
+          lastName: employee.lastName || '',
+          email: employee.email || '',
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+        setShowEditDialog(true);
+      } else {
+        toast.error('Failed to load profile data');
+      }
+    } catch (error) {
+      console.error('Error loading profile:', error);
+      toast.error('An error occurred while loading profile');
+    }
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate password fields if changing password
+    if (editFormData.newPassword || editFormData.confirmPassword || editFormData.currentPassword) {
+      if (!editFormData.currentPassword) {
+        toast.error('Current password is required to change password');
+        return;
+      }
+
+      if (!editFormData.newPassword) {
+        toast.error('New password is required');
+        return;
+      }
+
+      if (editFormData.newPassword !== editFormData.confirmPassword) {
+        toast.error('New passwords do not match');
+        return;
+      }
+
+      if (editFormData.newPassword.length < 6) {
+        toast.error('New password must be at least 6 characters');
+        return;
+      }
+    }
+
+    setUpdating(true);
+
+    try {
+      const updateData: any = {
+        firstName: editFormData.firstName,
+        lastName: editFormData.lastName,
+        email: editFormData.email,
+      };
+
+      // Add password fields only if changing password
+      if (editFormData.currentPassword && editFormData.newPassword) {
+        updateData.currentPassword = editFormData.currentPassword;
+        updateData.newPassword = editFormData.newPassword;
+      }
+
+      const response = await fetch(`/api/admin/${currentUserId}/update`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updateData),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(updateData.newPassword ? 'Profile and password updated successfully' : 'Profile updated successfully');
+        setShowEditDialog(false);
+
+        // Update localStorage with new user data
+        const userStr = localStorage.getItem('user');
+        if (userStr) {
+          const user = JSON.parse(userStr);
+          const updatedUser = {
+            ...user,
+            firstName: editFormData.firstName,
+            lastName: editFormData.lastName,
+            email: editFormData.email,
+          };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
+
+        // Reset form
+        setEditFormData({
+          firstName: '',
+          lastName: '',
+          email: '',
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: '',
+        });
+
+        fetchAdmins();
+      } else {
+        toast.error(data.error || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast.error('An error occurred while updating profile');
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -190,7 +326,8 @@ export function AdminManagement() {
                 Admin Management
               </CardTitle>
               <CardDescription>
-                Manage system administrators ({admins.length} admin{admins.length !== 1 ? 's' : ''})
+                Manage system administrators ({admins.length} admin{admins.length !== 1 ? 's' : ''}).
+                Managing Director can manage all admins. HR Head can only manage Reserved Admin.
               </CardDescription>
             </div>
             <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
@@ -204,7 +341,8 @@ export function AdminManagement() {
                 <DialogHeader>
                   <DialogTitle>Create New Admin</DialogTitle>
                   <DialogDescription>
-                    Add a new system administrator. They will have full access to manage employees, leaves, and attendance.
+                    Add a new Reserved Admin to the system. Only Managing Director and HR Head can create new admins.
+                    Reserved admins have full access but cannot remove other administrators.
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleCreateAdmin} className="space-y-4">
@@ -278,6 +416,7 @@ export function AdminManagement() {
                 <TableHead>Employee ID</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Admin Type</TableHead>
                 <TableHead>Position</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Status</TableHead>
@@ -287,7 +426,7 @@ export function AdminManagement() {
             <TableBody>
               {admins.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground">
                     No admins found
                   </TableCell>
                 </TableRow>
@@ -311,6 +450,28 @@ export function AdminManagement() {
                         {admin.email}
                       </div>
                     </TableCell>
+                    <TableCell>
+                      {admin.adminType === 'MANAGING_DIRECTOR' && (
+                        <Badge className="bg-amber-500 hover:bg-amber-600">
+                          Managing Director
+                        </Badge>
+                      )}
+                      {admin.adminType === 'HR_HEAD' && (
+                        <Badge className="bg-blue-500 hover:bg-blue-600">
+                          HR Head
+                        </Badge>
+                      )}
+                      {admin.adminType === 'RESERVED' && (
+                        <Badge variant="secondary">
+                          Reserved Admin
+                        </Badge>
+                      )}
+                      {!admin.adminType && (
+                        <Badge variant="outline" className="text-muted-foreground">
+                          Not Set
+                        </Badge>
+                      )}
+                    </TableCell>
                     <TableCell>{admin.position}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -328,21 +489,35 @@ export function AdminManagement() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setAdminToRemove(admin)}
-                        disabled={admin.id === currentUserId || admins.length <= 1}
-                        title={
-                          admin.id === currentUserId
-                            ? 'Cannot remove yourself'
-                            : admins.length <= 1
-                            ? 'Cannot remove the last admin'
-                            : 'Remove admin privileges'
-                        }
-                      >
-                        <Trash2 className="h-4 w-4 text-red-500" />
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        {admin.id === currentUserId && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditProfile(admin)}
+                            title="Edit your profile"
+                          >
+                            <Edit className="h-4 w-4 text-blue-500" />
+                          </Button>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setAdminToRemove(admin)}
+                          disabled={!admin.canDelete || admins.length <= 1}
+                          title={
+                            admins.length <= 1
+                              ? 'Cannot remove the last admin'
+                              : !admin.canDelete
+                              ? admin.id === currentUserId
+                                ? 'Cannot remove yourself'
+                                : 'You do not have permission to remove this admin'
+                              : 'Remove admin privileges'
+                          }
+                        >
+                          <Trash2 className="h-4 w-4 text-red-500" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -360,12 +535,23 @@ export function AdminManagement() {
               <div className="space-y-2">
                 <p>
                   Are you sure you want to remove admin privileges from{' '}
-                  <strong>{adminToRemove?.name}</strong>?
+                  <strong>{adminToRemove?.name}</strong>
+                  {adminToRemove?.adminType && (
+                    <span className="text-muted-foreground">
+                      {' '}({adminToRemove.adminType === 'MANAGING_DIRECTOR' ? 'Managing Director' :
+                         adminToRemove.adminType === 'HR_HEAD' ? 'HR Head' : 'Reserved Admin'})
+                    </span>
+                  )}?
                 </p>
                 <p className="text-yellow-600 font-medium">
                   This will convert their account to a regular employee account. They will lose access
-                  to the admin dashboard.
+                  to the admin dashboard and all admin privileges.
                 </p>
+                {adminToRemove?.adminType === 'RESERVED' && (
+                  <p className="text-sm text-muted-foreground">
+                    Note: This will free up the Reserved Admin position for a new admin to be created.
+                  </p>
+                )}
               </div>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -381,6 +567,106 @@ export function AdminManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Profile Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Your Profile</DialogTitle>
+            <DialogDescription>
+              Update your personal information. Changes will be reflected across the system.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateProfile} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-firstName">First Name</Label>
+                <Input
+                  id="edit-firstName"
+                  placeholder="First Name"
+                  value={editFormData.firstName}
+                  onChange={(e) => setEditFormData({ ...editFormData, firstName: e.target.value })}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-lastName">Last Name</Label>
+                <Input
+                  id="edit-lastName"
+                  placeholder="Last Name"
+                  value={editFormData.lastName}
+                  onChange={(e) => setEditFormData({ ...editFormData, lastName: e.target.value })}
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                type="email"
+                placeholder="admin@example.com"
+                value={editFormData.email}
+                onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
+                required
+              />
+            </div>
+
+            <div className="border-t pt-4 mt-4">
+              <h3 className="text-sm font-medium mb-3">Change Password (Optional)</h3>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-currentPassword">Current Password</Label>
+                  <Input
+                    id="edit-currentPassword"
+                    type="password"
+                    placeholder="Enter current password"
+                    value={editFormData.currentPassword}
+                    onChange={(e) => setEditFormData({ ...editFormData, currentPassword: e.target.value })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-newPassword">New Password</Label>
+                  <Input
+                    id="edit-newPassword"
+                    type="password"
+                    placeholder="Enter new password"
+                    value={editFormData.newPassword}
+                    onChange={(e) => setEditFormData({ ...editFormData, newPassword: e.target.value })}
+                    minLength={6}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Must be at least 6 characters
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-confirmPassword">Confirm New Password</Label>
+                  <Input
+                    id="edit-confirmPassword"
+                    type="password"
+                    placeholder="Confirm new password"
+                    value={editFormData.confirmPassword}
+                    onChange={(e) => setEditFormData({ ...editFormData, confirmPassword: e.target.value })}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowEditDialog(false)}
+                disabled={updating}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updating}>
+                {updating ? 'Updating...' : 'Update Profile'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

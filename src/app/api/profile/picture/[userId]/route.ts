@@ -1,9 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { existsSync } from 'fs';
-import path from 'path';
+import { NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
 
 export async function GET(
-  request: NextRequest,
+  _request: Request,
   { params }: { params: Promise<{ userId: string }> }
 ) {
   try {
@@ -16,24 +15,25 @@ export async function GET(
       );
     }
 
-    // Check if profile picture exists in the uploads directory
-    const uploadsDir = path.join(process.cwd(), 'public', 'uploads', 'profile-pictures');
+    // Fetch user profile picture from database
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        profilePicture: true
+      } as any,
+    });
 
-    // Check for various image extensions
-    const extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-    let foundFile = null;
-
-    for (const ext of extensions) {
-      const filePath = path.join(uploadsDir, `${userId}.${ext}`);
-      if (existsSync(filePath)) {
-        foundFile = `/uploads/profile-pictures/${userId}.${ext}`;
-        break;
-      }
+    if (!user) {
+      return NextResponse.json(
+        { error: 'User not found' },
+        { status: 404 }
+      );
     }
 
-    if (foundFile) {
+    if (user.profilePicture) {
       return NextResponse.json({
-        url: foundFile,
+        url: user.profilePicture,
       });
     } else {
       return NextResponse.json(

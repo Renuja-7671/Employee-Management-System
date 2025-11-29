@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
         email: true,
         password: true,
         role: true,
+        adminType: true,
         employeeId: true,
         firstName: true,
         lastName: true,
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
         dateOfJoining: true,
         isActive: true,
       },
-    });
+    } as any);
 
     if (!user) {
       return NextResponse.json(
@@ -76,6 +77,7 @@ export async function POST(request: NextRequest) {
         lastName: user.lastName,
         email: user.email,
         role: user.role,
+        adminType: user.adminType,
         employeeId: user.employeeId,
         department: user.department,
         position: user.position,

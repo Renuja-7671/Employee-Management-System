@@ -44,6 +44,7 @@ import { BirthdayEmails } from './BirthdayEmails';
 
 interface Employee extends EmployeeAPI {
   name: string;
+  nameWithInitials?: string | null;
   birthday?: string;
   address?: string;
   emergencyContact?: string;
@@ -67,6 +68,7 @@ export function EmployeeProfiles() {
   const [editFormData, setEditFormData] = useState({
     firstName: '',
     lastName: '',
+    nameWithInitials: '',
     email: '',
     phone: '',
     position: '',
@@ -211,6 +213,7 @@ export function EmployeeProfiles() {
       setEditFormData({
         firstName: selectedEmployee.firstName,
         lastName: selectedEmployee.lastName,
+        nameWithInitials: selectedEmployee.nameWithInitials || '',
         email: selectedEmployee.email,
         phone: selectedEmployee.phone || '',
         position: selectedEmployee.position,
@@ -228,6 +231,7 @@ export function EmployeeProfiles() {
     setEditFormData({
       firstName: '',
       lastName: '',
+      nameWithInitials: '',
       email: '',
       phone: '',
       position: '',
@@ -251,6 +255,7 @@ export function EmployeeProfiles() {
         body: JSON.stringify({
           firstName: editFormData.firstName,
           lastName: editFormData.lastName,
+          nameWithInitials: editFormData.nameWithInitials || null,
           email: editFormData.email,
           phoneNumber: editFormData.phone || null,
           position: editFormData.position,
@@ -533,6 +538,18 @@ export function EmployeeProfiles() {
               {/* Details Grid */}
               {isEditMode ? (
                 <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="edit-nameWithInitials">Name with Initials</Label>
+                    <Input
+                      id="edit-nameWithInitials"
+                      placeholder="e.g., J.D. Smith"
+                      value={editFormData.nameWithInitials}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, nameWithInitials: e.target.value })
+                      }
+                    />
+                  </div>
+
                   <div className="space-y-2">
                     <Label htmlFor="edit-email">Email</Label>
                     <Input
@@ -628,6 +645,13 @@ export function EmployeeProfiles() {
                 </div>
               ) : (
                 <div className="grid gap-4 md:grid-cols-2">
+                  {selectedEmployee.nameWithInitials && (
+                    <div className="space-y-2 md:col-span-2">
+                      <Label className="text-gray-600">Name with Initials</Label>
+                      <p className="font-medium text-lg">{selectedEmployee.nameWithInitials}</p>
+                    </div>
+                  )}
+
                   <div className="space-y-2">
                     <Label className="text-gray-600">Email</Label>
                     <div className="flex items-center gap-2">

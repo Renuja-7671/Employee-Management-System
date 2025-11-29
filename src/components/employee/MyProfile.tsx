@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { toast } from 'sonner';
-import { User, Mail, Phone, MapPin, Calendar, Briefcase, Building2, AlertCircle, Shield, Edit, Save, X, Lock, Camera } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Calendar, Briefcase, Building2, AlertCircle, Shield, Edit, Save, X, Lock } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
@@ -37,7 +37,6 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
     emergencyContact: '',
   });
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
-  const [uploadingPicture, setUploadingPicture] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
@@ -45,7 +44,6 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
     confirmPassword: '',
   });
   const [changingPassword, setChangingPassword] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (initialProfile) {
@@ -60,10 +58,7 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
   }, [initialProfile]);
 
   useEffect(() => {
-    fetchProfilePicture();
-  }, [user?.id]);
-
-  const fetchProfilePicture = async () => {
+    const fetchProfilePicture = async () => {
     if (!user?.id) return;
 
     try {
@@ -76,55 +71,12 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
     } catch (error) {
       console.error('Error fetching profile picture:', error);
     }
-  };
+   };
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    fetchProfilePicture();
+  }, [user?.id]);
 
-    // Validate file size (5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('File size must be less than 5MB');
-      return;
-    }
-
-    // Validate file type
-    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-    if (!allowedTypes.includes(file.type)) {
-      toast.error('Only image files are allowed');
-      return;
-    }
-
-    setUploadingPicture(true);
-
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('userId', user.id);
-
-      const response = await fetch('/api/profile/upload-picture', {
-        method: 'POST',
-        body: formData,
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        toast.success('Profile picture updated successfully');
-        setProfilePictureUrl(data.url);
-      } else {
-        toast.error(data.error || 'Failed to upload profile picture');
-      }
-    } catch (error) {
-      console.error('Error uploading profile picture:', error);
-      toast.error('Failed to upload profile picture');
-    } finally {
-      setUploadingPicture(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
+  
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -260,30 +212,12 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
         <CardContent className="pt-6">
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
             <div className="flex items-center gap-4">
-              <div className="relative">
-                <Avatar className="h-20 w-20">
-                  {profilePictureUrl && <AvatarImage src={profilePictureUrl} alt={`${profile.firstName} ${profile.lastName}`} />}
-                  <AvatarFallback className="bg-blue-100 text-blue-700 text-2xl">
-                    {getInitials(profile.firstName, profile.lastName)}
-                  </AvatarFallback>
-                </Avatar>
-                <Button
-                  size="icon"
-                  variant="secondary"
-                  className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingPicture}
-                >
-                  <Camera className="h-4 w-4" />
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileSelect}
-                />
-              </div>
+              <Avatar className="h-20 w-20">
+                {profilePictureUrl && <AvatarImage src={profilePictureUrl} alt={`${profile.firstName} ${profile.lastName}`} />}
+                <AvatarFallback className="bg-blue-100 text-blue-700 text-2xl">
+                  {getInitials(profile.firstName, profile.lastName)}
+                </AvatarFallback>
+              </Avatar>
               <div>
                 <h2 className="text-2xl font-semibold">{profile.firstName} {profile.lastName}</h2>
                 <p className="text-gray-600 flex items-center gap-2 mt-1">
@@ -400,8 +334,6 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!editMode ? (
-              <>
                 <div className="space-y-1">
                   <Label className="text-gray-500">Full Name</Label>
                   <div className="flex items-center gap-2">
@@ -433,40 +365,6 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
                     <span>{formatBirthday(profile.birthday)}</span>
                   </div>
                 </div>
-              </>
-            ) : (
-              <form className="space-y-4">
-                <div className="space-y-1">
-                  <Label className="text-gray-500">Full Name</Label>
-                  <Input value={`${profile.firstName} ${profile.lastName}`} disabled />
-                  <p className="text-xs text-gray-500">Contact admin to change your name</p>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-gray-500">Email Address</Label>
-                  <Input value={profile.email} disabled />
-                  <p className="text-xs text-gray-500">Contact admin to change your email</p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phoneNumber">Phone Number</Label>
-                  <Input
-                    id="phoneNumber"
-                    type="tel"
-                    placeholder="+1 234 567 8900"
-                    value={formData.phoneNumber}
-                    onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="birthday">Date of Birth</Label>
-                  <Input
-                    id="birthday"
-                    type="date"
-                    value={formData.birthday}
-                    onChange={(e) => setFormData({ ...formData, birthday: e.target.value })}
-                  />
-                </div>
-              </form>
-            )}
           </CardContent>
         </Card>
 
@@ -536,7 +434,6 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {!editMode ? (
               <div className="space-y-1">
                 <div className="flex items-start gap-2">
                   <MapPin className="h-4 w-4 text-gray-400 mt-1" />
@@ -545,18 +442,6 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
                   </span>
                 </div>
               </div>
-            ) : (
-              <div className="space-y-2">
-                <Label htmlFor="address">Full Address</Label>
-                <Textarea
-                  id="address"
-                  placeholder="Enter your full address"
-                  value={formData.address}
-                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  rows={3}
-                />
-              </div>
-            )}
           </CardContent>
         </Card>
 
@@ -591,7 +476,7 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
                   onChange={(e) => setFormData({ ...formData, emergencyContact: e.target.value })}
                 />
                 <p className="text-xs text-gray-500">
-                  Include name and phone number (e.g., "Ashan - 077 123 4567")
+                  Include name and phone number (e.g., Ashan - 077 123 4567)
                 </p>
               </div>
             )}

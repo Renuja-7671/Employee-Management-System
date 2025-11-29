@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { Calendar, Clock, CheckCircle, XCircle, User, FileText } from 'lucide-react';
+import { Calendar, Clock, CheckCircle, XCircle, User } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface CoverRequestsProps {
@@ -176,7 +176,7 @@ export function CoverRequests({ user, onUpdate }: CoverRequestsProps) {
               <User className="h-12 w-12 text-gray-300 mx-auto mb-3" />
               <p className="text-gray-500">No pending cover requests</p>
               <p className="text-sm text-gray-400 mt-1">
-                You'll see requests here when colleagues ask you to cover their leave
+                You will see requests here when colleagues ask you to cover their leave
               </p>
             </div>
           ) : (
@@ -227,20 +227,6 @@ export function CoverRequests({ user, onUpdate }: CoverRequestsProps) {
                             <p className="text-sm text-gray-600">
                               <span className="font-medium">Reason:</span> {request.reason}
                             </p>
-                          </div>
-                        )}
-
-                        {/* Medical Certificate */}
-                        {request.leaveType === 'medical' && request.medicalCertUrl && (
-                          <div className="mb-3">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => window.open(request.medicalCertUrl, '_blank')}
-                            >
-                              <FileText className="h-4 w-4 mr-2" />
-                              View Medical Certificate
-                            </Button>
                           </div>
                         )}
 

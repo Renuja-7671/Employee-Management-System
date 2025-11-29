@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { LogOut, Bell, Home } from 'lucide-react';
 import { NotificationPanel } from '@/components/shared/NotificationPanel';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { getProfilePicture } from '@/lib/api/profile';
 
@@ -76,7 +77,7 @@ export function AdminHeader() {
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center gap-3">
               <Image
-                src="/images/logo.jpg"
+                src="/images/logo-dark.png"
                 alt="Unique Industrial Solutions"
                 width={64}
                 height={64}
@@ -103,6 +104,8 @@ export function AdminHeader() {
                   </AvatarFallback>
                 </Avatar>
               </div>
+
+              <ThemeToggle />
 
               <div className="relative">
                 <Button

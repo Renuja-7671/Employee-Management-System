@@ -11,6 +11,7 @@ import {
 import { Button } from "./ui/button";
 import { LogOut, Bell, Home } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { ThemeToggle } from "./ThemeToggle";
 import { EmployeeOverview } from "./employee/EmployeeOverview";
 import { ApplyLeave } from "./employee/ApplyLeave";
 import { MyLeaves } from "./employee/MyLeaves";
@@ -133,7 +134,7 @@ export function EmployeeDashboard({
             <div className="flex items-center gap-3">
               <div className="relative h-16 w-48">
                 <Image
-                  src="/images/logo.jpg"
+                  src="/images/logo-dark.png"
                   alt="Unique Industrial Solutions"
                   fill
                   className="object-contain"
@@ -166,6 +167,9 @@ export function EmployeeDashboard({
                   </AvatarFallback>
                 </Avatar>
               </div>
+
+              <ThemeToggle />
+
               <div className="relative">
                 <Button
                   variant="outline"

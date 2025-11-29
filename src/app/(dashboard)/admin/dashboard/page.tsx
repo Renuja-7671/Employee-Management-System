@@ -1,7 +1,7 @@
 // src/app/(dashboard)/admin/dashboard/page.tsx
 
-import { AdminOverview } from '@/components/admin/AdminOverview';
+import LeaveSummary from '@/components/admin/LeaveSummary';
 
 export default function AdminDashboardPage() {
-  return <AdminOverview />;
+  return <LeaveSummary />;
 }

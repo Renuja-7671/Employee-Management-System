@@ -38,12 +38,41 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // Count approved medical and official leaves for current year
+    const medicalLeaveCount = await prisma.leave.count({
+      where: {
+        employeeId: userId,
+        leaveType: 'MEDICAL',
+        status: 'APPROVED',
+        startDate: {
+          gte: new Date(currentYear, 0, 1), // January 1st of current year
+          lt: new Date(currentYear + 1, 0, 1), // January 1st of next year
+        },
+      },
+    });
+
+    const officialLeaveCount = await prisma.leave.count({
+      where: {
+        employeeId: userId,
+        leaveType: 'OFFICIAL',
+        status: 'APPROVED',
+        startDate: {
+          gte: new Date(currentYear, 0, 1),
+          lt: new Date(currentYear + 1, 0, 1),
+        },
+      },
+    });
+
     return NextResponse.json({
       balance: {
         annual: leaveBalance.annual,
         casual: leaveBalance.casual,
         medical: leaveBalance.medical,
         business: leaveBalance.business,
+      },
+      counts: {
+        medicalLeaveTaken: medicalLeaveCount,
+        officialLeaveTaken: officialLeaveCount,
       },
     });
   } catch (error) {

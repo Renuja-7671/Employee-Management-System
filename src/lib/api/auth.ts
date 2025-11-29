@@ -60,6 +60,7 @@ export async function createAdminAccount(data: {
   name: string;
   email: string;
   password: string;
+  adminType: string;
 }): Promise<CreateAdminResult> {
   try {
     const response = await fetch('/api/auth/setup', {

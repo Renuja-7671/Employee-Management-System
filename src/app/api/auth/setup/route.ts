@@ -6,23 +6,23 @@ import bcrypt from 'bcryptjs';
 
 export async function POST(request: NextRequest) {
   try {
-    const { name, email, password } = await request.json();
+    const { name, email, password, adminType } = await request.json();
 
-    if (!name || !email || !password) {
+    if (!name || !email || !password || !adminType) {
       return NextResponse.json(
-        { success: false, error: 'Name, email, and password are required' },
+        { success: false, error: 'Name, email, password and admin type are required' },
         { status: 400 }
       );
     }
 
     // Check if any admin already exists
-    const existingAdmin = await prisma.user.findFirst({
-      where: { role: 'ADMIN' },
+    const existingAdminType = await prisma.user.findFirst({
+      where: { adminType: adminType },
     });
 
-    if (existingAdmin) {
+    if (existingAdminType) {
       return NextResponse.json(
-        { success: false, error: 'Admin account already exists' },
+        { success: false, error: 'Admin account for this person already exists' },
         { status: 400 }
       );
     }
@@ -59,21 +59,23 @@ export async function POST(request: NextRequest) {
         employeeId,
         firstName,
         lastName,
-        department: 'ADMINISTRATION',
+        department: 'MANAGEMENT',
         position: 'System Administrator',
         isActive: true,
+        adminType,
       },
       select: {
         id: true,
         email: true,
         role: true,
+        adminType: true,
         employeeId: true,
         firstName: true,
         lastName: true,
         department: true,
         position: true,
       },
-    });
+    } as any);
 
     // Create leave balance for admin
     await prisma.leaveBalance.create({
@@ -83,7 +85,7 @@ export async function POST(request: NextRequest) {
         annual: 14,
         casual: 7,
         medical: 0,
-        business: 0,
+        official: 0,
       },
     });
 

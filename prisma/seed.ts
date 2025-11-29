@@ -1,25 +1,30 @@
 import { PrismaClient, Role, Department } from '@prisma/client'
 import bcrypt from 'bcryptjs'
+import * as dotenv from 'dotenv'
+
+// Load environment variables
+dotenv.config()
 
 const prisma = new PrismaClient()
 
 async function main() {
   // Create admin user
-  const adminPassword = await bcrypt.hash('admin123', 10)
+  const adminPassword = await bcrypt.hash('123456', 10)
   
   const admin = await prisma.user.upsert({
-    where: { email: 'admin@uniqueindustrial.com' },
+    where: { email: 'saman@gmail.com' },
     update: {},
     create: {
-      email: 'admin@uniqueindustrial.com',
+      email: 'saman@gmail.com',
       password: adminPassword,
       role: Role.ADMIN,
-      employeeId: 'EMP001',
-      firstName: 'System',
-      lastName: 'Administrator',
-      department: Department.ADMINISTRATION,
+      employeeId: 'ADM001',
+      firstName: 'Saman',
+      lastName: 'Perera',
+      department: Department.MANAGEMENT,
       position: 'Managing Director',
       phoneNumber: '+94771234567',
+      adminType: 'MANAGING_DIRECTOR',
     },
   })
 
@@ -33,14 +38,14 @@ async function main() {
       annual: 14,
       casual: 7,
       medical: 0,
-      business: 0,
+      official: 0,
     },
   })
 
   console.log('Seed data created successfully')
   console.log('Admin credentials:')
-  console.log('Email: admin@uniqueindustrial.com')
-  console.log('Password: admin123')
+  console.log('Email: saman@gmail.com')
+  console.log('Password: 123456')
 }
 
 main()
