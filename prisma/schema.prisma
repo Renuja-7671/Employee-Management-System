@@ -37,6 +37,8 @@ model User {
   leaveBalance        LeaveBalance?
   notifications       Notification[]
   sentNotifications   Notification[]   @relation("NotificationSender")
+  biometricMapping    BiometricMapping?
+  passwordResetTokens PasswordResetToken[]
 
   @@index([email])
   @@index([employeeId])
@@ -98,12 +100,16 @@ model Attendance {
   workHours   Float?
   isWeekend   Boolean           @default(false)
   notes       String?
+  deviceId    String?           // ID of the biometric device
+  verifyMode  Int?              // Verification method (fingerprint, card, face)
+  source      AttendanceSource  @default(MANUAL)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
   @@unique([employeeId, date])
   @@index([employeeId])
   @@index([date])
+  @@index([deviceId])
 }
 
 model LeaveBalance {
@@ -148,6 +154,60 @@ model PublicHoliday {
   createdAt   DateTime @default(now())
 
   @@index([date])
+}
+
+model BiometricDevice {
+  id              String   @id @default(uuid())
+  name            String
+  deviceType      DeviceType
+  ipAddress       String
+  port            Int      @default(80)
+  username        String
+  password        String   // Encrypted in production
+  serialNumber    String?  @unique
+  model           String?
+  firmwareVersion String?
+  macAddress      String?
+  isActive        Boolean  @default(true)
+  lastSyncAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([serialNumber])
+  @@index([isActive])
+}
+
+model BiometricMapping {
+  id             String   @id @default(uuid())
+  employeeId     String   @unique
+  employee       User     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  deviceEmployeeNo String  @unique // Employee number in the biometric device
+  cardNo         String?  // Card number if using RFID card
+  fingerprintEnrolled Boolean @default(false)
+  faceEnrolled   Boolean @default(false)
+  syncedAt       DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model AttendanceLog {
+  id             String   @id @default(uuid())
+  deviceEmployeeNo String
+  employeeId     String?  // Null if not mapped yet
+  timestamp      DateTime
+  verifyMode     Int      // 0: Card, 1: Fingerprint, 2: Face
+  inOutType      Int      // 0: In, 1: Out
+  deviceId       String?
+  deviceName     String?
+  processed      Boolean  @default(false)
+  processedAt    DateTime?
+  errorMessage   String?
+  createdAt      DateTime @default(now())
+
+  @@index([deviceEmployeeNo])
+  @@index([employeeId])
+  @@index([timestamp])
+  @@index([processed])
 }
 
 enum Role {
@@ -212,4 +272,32 @@ enum NotificationType {
   ATTENDANCE_ALERT
   LEAVE_BALANCE_LOW
   SYSTEM_ALERT
+}
+
+enum DeviceType {
+  HIKVISION
+  ZK_TECO
+  OTHER
+}
+
+enum AttendanceSource {
+  MANUAL
+  BIOMETRIC
+  MOBILE
+  WEB
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
 }

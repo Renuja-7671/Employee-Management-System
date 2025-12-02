@@ -10,9 +10,10 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/auth/PasswordInput';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Lock, Mail, ArrowRight, Shield, Clock, Users, Home, AlertCircle } from 'lucide-react';
+import { Lock, Mail, ArrowRight, Shield, Clock, Users, Home, AlertCircle, KeyRound } from 'lucide-react';
 import { loginUser } from '@/lib/api/auth';
 import { toast } from 'sonner';
+import Link from 'next/link';
 
 export function LoginForm() {
   const router = useRouter();
@@ -234,6 +235,16 @@ export function LoginForm() {
                         autoComplete="current-password"
                       />
                     </div>
+                  </div>
+
+                  <div className="flex items-center justify-end">
+                    <Link
+                      href="/forgot-password"
+                      className="text-sm text-teal-600 hover:text-teal-700 font-medium hover:underline transition-colors duration-200 flex items-center gap-1"
+                    >
+                      <KeyRound className="h-3.5 w-3.5" />
+                      Forgot Password?
+                    </Link>
                   </div>
 
                   {error && (
