@@ -6,10 +6,6 @@
     {
       "path": "/api/emails/birthday/auto",
       "schedule": "1 0 * * *"
-    },
-    {
-      "path": "/api/cron/attendance-sync",
-      "schedule": "*/15 * * * *"
     }
   ]
 }
