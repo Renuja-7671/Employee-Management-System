@@ -4,19 +4,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createAttendanceSyncService } from '@/lib/services/attendance-sync';
 
 /**
- * Cron job endpoint for periodic attendance sync
+ * BACKUP Cron Job for Attendance Sync
  *
- * This endpoint should be called by a cron service (e.g., Vercel Cron, GitHub Actions, or external cron service)
+ * PRIMARY METHOD: Real-time webhooks (instant updates when fingerprint scanned)
+ * BACKUP METHOD: This cron job (catches any missed events)
  *
- * For Vercel Cron, add to vercel.json:
- * {
- *   "crons": [{
- *     "path": "/api/cron/attendance-sync",
- *     "schedule": "0 * * * *"  // Every hour
- *   }]
- * }
+ * This endpoint runs every 6 hours as a safety net to catch:
+ * - Events missed due to webhook failures
+ * - Events that occurred during network downtime
+ * - Events from before webhook was configured
  *
- * For security, you should add authentication via cron secret
+ * Schedule: Every 6 hours (configured in vercel.json)
+ * Syncs: Last 24 hours of attendance data
+ *
+ * For security, add CRON_SECRET to environment variables
  */
 
 export async function GET(request: NextRequest) {
@@ -33,18 +34,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    console.log('[CRON] Starting scheduled attendance sync...');
+    console.log('[BACKUP SYNC] Starting scheduled backup sync...');
 
     const syncService = createAttendanceSyncService();
 
-    // Sync attendance from last sync time
-    const result = await syncService.syncAttendance();
+    // Sync last 24 hours as backup (catches any missed webhook events)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setHours(startDate.getHours() - 24);
 
-    console.log('[CRON] Attendance sync completed:', {
+    const result = await syncService.syncAttendance(startDate, endDate);
+
+    console.log('[BACKUP SYNC] Completed:', {
       success: result.success,
       recordsFetched: result.recordsFetched,
       recordsProcessed: result.recordsProcessed,
       recordsFailed: result.recordsFailed,
+      errors: result.errors?.length || 0,
     });
 
     if (!result.success) {

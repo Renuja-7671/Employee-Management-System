@@ -209,7 +209,7 @@ export class AttendanceSyncService {
     const isCheckIn = inOutType === 0 || inOutType === 3; // 0=In, 1=Out, 2=BreakOut, 3=BreakIn
 
     // Find existing attendance for the day
-    let attendance = await prisma.attendance.findUnique({
+    const attendance = await prisma.attendance.findUnique({
       where: {
         employeeId_date: {
           employeeId,
