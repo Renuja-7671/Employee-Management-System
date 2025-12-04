@@ -50,11 +50,17 @@ export async function POST(request: NextRequest) {
 
     // Configure webhook on device
     try {
-      await hikClient.configureEventNotification({
-        url: fullWebhookUrl,
-        method: 'POST',
-        events: ['ACCESS_CONTROL'],
-      });
+      // Determine protocol based on URL
+      const protocolType = fullWebhookUrl.startsWith('https') ? 'HTTPS' : 'HTTP';
+
+      const success = await hikClient.configureEventNotification(
+        fullWebhookUrl,
+        protocolType
+      );
+
+      if (!success) {
+        throw new Error('Device returned failure when configuring webhook');
+      }
 
       console.log('[DEVICE CONFIG] Successfully configured webhook on device');
 
