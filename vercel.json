@@ -9,7 +9,7 @@
     },
     {
       "path": "/api/cron/attendance-sync",
-      "schedule": "0 4,13 * * *"
+      "schedule": "0 13 * * *"
     }
   ]
 }
