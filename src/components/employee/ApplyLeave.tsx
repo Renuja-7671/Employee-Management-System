@@ -171,9 +171,9 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
     }
 
     if (formData.leaveType === 'annual') {
-      // Annual leave: 7 days before current date and all future dates
+      // Annual leave: must be planned 7 days in advance (7 days after today)
       const minDate = new Date(today);
-      minDate.setDate(today.getDate() - 7);
+      minDate.setDate(today.getDate() + 7);
 
       return {
         min: minDate.toISOString().split('T')[0],
@@ -431,7 +431,7 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
               )}
               {formData.leaveType === 'annual' && (
                 <p className="text-xs text-blue-600 mt-1">
-                  Annual leave: max 3 consecutive days per request, can apply 7 days before today or any future date
+                  Annual leave: max 3 consecutive days per request, must be planned at least 7 days in advance
                 </p>
               )}
               {formData.leaveType === 'casual' && (
@@ -509,7 +509,7 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
                 )}
                 {formData.leaveType === 'annual' && (
                   <p className="text-xs text-gray-500">
-                    You can select dates from {new Date(new Date().setDate(new Date().getDate() - 7)).toLocaleDateString()} onwards
+                    You can select dates from {new Date(new Date().setDate(new Date().getDate() + 7)).toLocaleDateString()} onwards (7 days from today)
                   </p>
                 )}
                 {formData.leaveType === 'casual' && (

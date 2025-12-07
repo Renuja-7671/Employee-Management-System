@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
       reason,
       coverEmployeeId,
       medicalCertUrl,
+      numberOfDays,
     } = body;
 
     // Validate required fields
@@ -22,10 +23,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Calculate number of days
+    // Use numberOfDays from request (handles half-day 0.5 for casual leave)
+    // Fall back to date calculation for other leave types if not provided
     const start = new Date(startDate);
     const end = new Date(endDate);
-    const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    const totalDays = numberOfDays || Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
 
     // Validate dates
     if (start > end) {
