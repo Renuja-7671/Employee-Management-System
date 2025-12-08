@@ -65,8 +65,8 @@ export async function POST(
       },
     });
 
-    // Deduct leave balance only for annual and casual leaves (medical and official are unlimited)
-    if (leave.leaveType === 'ANNUAL' || leave.leaveType === 'CASUAL') {
+    // Deduct leave balance for annual, casual, and medical leaves (official is unlimited)
+    if (leave.leaveType === 'ANNUAL' || leave.leaveType === 'CASUAL' || leave.leaveType === 'MEDICAL') {
       // Deduct from the year when the leave is taken (not current year)
       const leaveYear = new Date(leave.startDate).getFullYear();
 
@@ -86,15 +86,21 @@ export async function POST(
             year: leaveYear,
             annual: 14,
             casual: 7,
-            medical: 0,
+            medical: 7,
             official: 0,
           },
         });
       }
 
       // Deduct the leave days from the appropriate balance
-      const fieldToUpdate = leave.leaveType === 'ANNUAL' ? 'annual' : 'casual';
-      const currentBalance = leave.leaveType === 'ANNUAL' ? leaveBalance.annual : leaveBalance.casual;
+      const fieldToUpdate =
+        leave.leaveType === 'ANNUAL' ? 'annual' :
+        leave.leaveType === 'CASUAL' ? 'casual' : 'medical';
+
+      const currentBalance =
+        leave.leaveType === 'ANNUAL' ? leaveBalance.annual :
+        leave.leaveType === 'CASUAL' ? leaveBalance.casual : leaveBalance.medical;
+
       const newBalance = Math.max(0, currentBalance - leave.totalDays);
 
       await prisma.leaveBalance.update({
@@ -128,14 +134,75 @@ export async function POST(
     }
 
     // Create notification for admin
+    const adminNotificationMessage = leave.isNoPay
+      ? `You approved ${employee?.firstName} ${employee?.lastName}'s leave request for ${leave.totalDays} day(s). ⚠️ This is a NO PAY leave due to insufficient balance.`
+      : `You approved ${employee?.firstName} ${employee?.lastName}'s leave request for ${leave.totalDays} day(s).`;
+
     await prisma.notification.create({
       data: {
         userId: body.adminId,
         type: 'LEAVE_APPROVED',
-        title: '✅ Leave Approved',
-        message: `You approved ${employee?.firstName} ${employee?.lastName}'s leave request for ${leave.totalDays} day(s).`,
+        title: leave.isNoPay ? '✅ Leave Approved (NO PAY)' : '✅ Leave Approved',
+        message: adminNotificationMessage,
+        isPinned: leave.isNoPay ? true : false,
       },
     });
+
+    // Check if this leave approval creates a covering duty conflict
+    const coverDutyReassignments = await prisma.coverDutyReassignment.findMany({
+      where: {
+        coverEmployeeLeaveId: leave.id,
+        status: 'PENDING',
+      },
+    });
+
+    // If there are covering duty conflicts, notify HR Head for reassignment
+    if (coverDutyReassignments.length > 0) {
+      // Get HR Head
+      const hrHead = await prisma.user.findFirst({
+        where: {
+          role: 'ADMIN',
+          adminType: 'HR_HEAD',
+          isActive: true,
+        },
+      });
+
+      if (hrHead) {
+        // Fetch details of affected leaves
+        const affectedLeaveIds = coverDutyReassignments.map(r => r.originalLeaveId);
+        const affectedLeaves = await prisma.leave.findMany({
+          where: {
+            id: { in: affectedLeaveIds },
+          },
+          include: {
+            employee: {
+              select: {
+                firstName: true,
+                lastName: true,
+                employeeId: true,
+              },
+            },
+          },
+        });
+
+        const affectedEmployeesList = affectedLeaves.map(
+          l => `${l.employee.firstName} ${l.employee.lastName} (${new Date(l.startDate).toLocaleDateString()} - ${new Date(l.endDate).toLocaleDateString()})`
+        ).join(', ');
+
+        // Notify HR Head about duty reassignment needed
+        await prisma.notification.create({
+          data: {
+            userId: hrHead.id,
+            type: 'DUTY_REASSIGNMENT_REQUIRED',
+            title: '🔄 Duty Reassignment Required',
+            message: `${employee?.firstName} ${employee?.lastName}'s ${leave.leaveType.toLowerCase()} leave has been approved. They were covering for: ${affectedEmployeesList}. Please assign new cover employees.`,
+            senderId: body.adminId,
+            relatedId: leave.id,
+            isPinned: true,
+          },
+        });
+      }
+    }
 
     // Send emails to all parties (don't wait for completion)
     if (employee) {
@@ -180,7 +247,12 @@ export async function POST(
         });
     }
 
-    return NextResponse.json({ success: true, leave });
+    return NextResponse.json({
+      success: true,
+      leave,
+      dutyReassignmentRequired: coverDutyReassignments.length > 0,
+      affectedCount: coverDutyReassignments.length,
+    });
   } catch (error: any) {
     console.error('Error approving leave:', error);
     return NextResponse.json(

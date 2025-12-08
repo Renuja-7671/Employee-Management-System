@@ -62,26 +62,30 @@ export async function POST(request: NextRequest) {
           year: leaveYear,
           annual: 14,
           casual: 7,
-          medical: 0,
+          medical: 7,
           official: 0,
         },
       });
     }
 
-    // Validate leave balance based on type (not applicable for official leave)
+    // Check if this will be a No Pay leave
     const leaveTypeUpper = leaveType.toUpperCase();
+    let isNoPay = false;
+    let noPayMessage = '';
+
     if (leaveTypeUpper === 'ANNUAL' && leaveBalance.annual < totalDays) {
-      return NextResponse.json(
-        { error: 'Insufficient annual leave balance' },
-        { status: 400 }
-      );
+      isNoPay = true;
+      noPayMessage = `You have insufficient annual leave balance (${leaveBalance.annual} days remaining). This will be a NO PAY leave if approved.`;
     }
 
     if (leaveTypeUpper === 'CASUAL' && leaveBalance.casual < totalDays) {
-      return NextResponse.json(
-        { error: 'Insufficient casual leave balance' },
-        { status: 400 }
-      );
+      isNoPay = true;
+      noPayMessage = `You have insufficient casual leave balance (${leaveBalance.casual} days remaining). This will be a NO PAY leave if approved.`;
+    }
+
+    if (leaveTypeUpper === 'MEDICAL' && leaveBalance.medical < totalDays) {
+      isNoPay = true;
+      noPayMessage = `You have insufficient medical leave balance (${leaveBalance.medical} days remaining). This will be a NO PAY leave if approved.`;
     }
 
     // Validate casual leave: only 0.5 or 1 day allowed
@@ -90,6 +94,17 @@ export async function POST(request: NextRequest) {
         { error: 'Casual leave can only be 0.5 day (half day) or 1 day' },
         { status: 400 }
       );
+    }
+
+    // Validate medical leave: only 0.5, 1, 1.5, 2, 2.5, or 3 days allowed
+    if (leaveTypeUpper === 'MEDICAL') {
+      const allowedDays = [0.5, 1, 1.5, 2, 2.5, 3];
+      if (!allowedDays.includes(totalDays)) {
+        return NextResponse.json(
+          { error: 'Medical leave can only be 0.5, 1, 1.5, 2, 2.5, or 3 days' },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate casual leave date range (2 days before current date to all future)
@@ -170,15 +185,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate medical certificate for medical leave
-    if (leaveTypeUpper === 'MEDICAL' && !medicalCertUrl) {
+    // Validate medical certificate for medical leave (required if more than 1 day)
+    if (leaveTypeUpper === 'MEDICAL' && totalDays > 1 && !medicalCertUrl) {
       return NextResponse.json(
-        { error: 'Medical certificate is required for medical leave' },
+        { error: 'Medical certificate is required for medical leave exceeding 1 day' },
         { status: 400 }
       );
     }
 
     // Check if the employee has accepted to cover for someone else during the requested leave period
+    // IMPORTANT: Medical leaves are always allowed even when covering (practical requirement - sick employees cannot work)
     const coveringDuties = await prisma.leave.findMany({
       where: {
         coverEmployeeId: userId,
@@ -217,18 +233,59 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    if (coveringDuties.length > 0) {
+    // Block only non-medical leaves when covering duties
+    // Medical leaves are ALWAYS allowed (employee cannot work if ill)
+    if (coveringDuties.length > 0 && leaveTypeUpper !== 'MEDICAL') {
       const coveringFor = coveringDuties.map(
         (duty) => `${duty.employee.firstName} ${duty.employee.lastName} (${new Date(duty.startDate).toLocaleDateString()} - ${new Date(duty.endDate).toLocaleDateString()})`
       ).join(', ');
 
       return NextResponse.json(
         {
-          error: `You cannot apply for leave during this period because you have accepted to cover duties for: ${coveringFor}`,
+          error: `You cannot apply for ${leaveType} leave during this period because you have accepted to cover duties for: ${coveringFor}. However, you may apply for medical leave if needed.`,
         },
         { status: 400 }
       );
     }
+
+    // Check if this employee is currently covering for someone else during the requested period
+    // This is a critical scenario that needs special handling
+    const coveringForOthers = await prisma.leave.findMany({
+      where: {
+        coverEmployeeId: userId,
+        status: 'APPROVED', // Only approved leaves where this employee is the cover
+        OR: [
+          {
+            AND: [
+              { startDate: { lte: start } },
+              { endDate: { gte: start } },
+            ],
+          },
+          {
+            AND: [
+              { startDate: { lte: end } },
+              { endDate: { gte: end } },
+            ],
+          },
+          {
+            AND: [
+              { startDate: { gte: start } },
+              { endDate: { lte: end } },
+            ],
+          },
+        ],
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            employeeId: true,
+          },
+        },
+      },
+    });
 
     // Create leave request
     const leave = await prisma.leave.create({
@@ -242,6 +299,7 @@ export async function POST(request: NextRequest) {
         coverEmployeeId,
         medicalCertPath: medicalCertUrl || null,
         status: 'PENDING_COVER',
+        isNoPay: isNoPay,
       },
     });
 
@@ -275,12 +333,84 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // If this is a No Pay leave, notify the employee
+    if (isNoPay) {
+      await prisma.notification.create({
+        data: {
+          userId: userId,
+          type: 'SYSTEM_ALERT',
+          title: '⚠️ No Pay Leave Notice',
+          message: noPayMessage,
+          relatedId: leave.id,
+          isPinned: true,
+        },
+      });
+    }
+
+    // If this employee is covering for others and applying for leave (especially medical),
+    // notify all admins about the covering duty conflict
+    if (coveringForOthers.length > 0) {
+      // Get all admins (Managing Director and HR Head)
+      const admins = await prisma.user.findMany({
+        where: {
+          role: 'ADMIN',
+          isActive: true,
+        },
+        select: {
+          id: true,
+          adminType: true,
+        },
+      });
+
+      // Create notifications for all admins about the conflict
+      const conflictDetails = coveringForOthers.map(
+        (originalLeave) =>
+          `${originalLeave.employee.firstName} ${originalLeave.employee.lastName} (${new Date(originalLeave.startDate).toLocaleDateString()} - ${new Date(originalLeave.endDate).toLocaleDateString()})`
+      ).join(', ');
+
+      for (const admin of admins) {
+        await prisma.notification.create({
+          data: {
+            userId: admin.id,
+            type: 'COVERING_DUTY_CONFLICT',
+            title: '⚠️ Covering Duty Conflict Detected',
+            message: `${employee?.firstName} ${employee?.lastName} applied for ${leaveType} leave (${start.toLocaleDateString()} - ${end.toLocaleDateString()}) but is currently covering for: ${conflictDetails}. If approved, duty reassignment will be required.`,
+            senderId: userId,
+            relatedId: leave.id,
+            isPinned: true, // Pin this to make it highly visible
+          },
+        });
+      }
+
+      // Create cover duty reassignment records for tracking
+      for (const originalLeave of coveringForOthers) {
+        await prisma.coverDutyReassignment.create({
+          data: {
+            originalLeaveId: originalLeave.id,
+            coverEmployeeLeaveId: leave.id,
+            originalCoverEmployeeId: userId,
+            status: 'PENDING',
+          },
+        });
+      }
+    }
+
     return NextResponse.json({
       message: 'Leave request submitted successfully',
       leave: {
         id: leave.id,
         status: leave.status,
       },
+      isNoPay: isNoPay,
+      noPayMessage: isNoPay ? noPayMessage : null,
+      coveringDutyConflict: coveringForOthers.length > 0,
+      conflictDetails: coveringForOthers.length > 0 ? {
+        affectedLeaves: coveringForOthers.map(l => ({
+          employeeName: `${l.employee.firstName} ${l.employee.lastName}`,
+          startDate: l.startDate,
+          endDate: l.endDate,
+        }))
+      } : null,
     });
   } catch (error) {
     console.error('Error applying for leave:', error);

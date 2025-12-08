@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
     const { webhookUrl } = body;
 
     // Get webhook URL (use provided or construct from environment)
-    const baseUrl = webhookUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://your-app.vercel.app';
+    const baseUrl = webhookUrl || process.env.NEXT_PUBLIC_APP_URL || 'https://employee-management-system-mu-beryl.vercel.app';
     const fullWebhookUrl = `${baseUrl}/api/attendance/webhook`;
 
     console.log('[DEVICE CONFIG] Configuring webhook to:', fullWebhookUrl);
@@ -131,7 +131,7 @@ export async function GET() {
     }
 
     // Get webhook URL
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-app.vercel.app';
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://employee-management-system-mu-beryl.vercel.app';
     const webhookUrl = `${baseUrl}/api/attendance/webhook`;
 
     // Get recent sync stats

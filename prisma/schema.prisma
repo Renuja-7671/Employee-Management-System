@@ -53,13 +53,14 @@ model Leave {
   leaveType         LeaveType
   startDate         DateTime
   endDate           DateTime
-  totalDays         Int
+  totalDays         Float
   reason            String
   status            LeaveStatus @default(PENDING_COVER)
   adminResponse     String?
   coverEmployeeId   String?
   coverEmployee     User?       @relation("RequestedLeaves", fields: [coverEmployeeId], references: [id])
   medicalCertPath   String?
+  isNoPay           Boolean     @default(false)
   isCancelled       Boolean     @default(false)
   cancellationReason String?
   createdAt         DateTime    @default(now())
@@ -86,6 +87,22 @@ model CoverRequest {
   expiresAt       DateTime
 
   @@index([coverEmployeeId])
+  @@index([status])
+}
+
+model CoverDutyReassignment {
+  id                    String   @id @default(uuid())
+  originalLeaveId       String   // The original leave that needed covering
+  coverEmployeeLeaveId  String   // The leave taken by the cover employee
+  originalCoverEmployeeId String // Who was supposed to cover
+  newCoverEmployeeId    String?  // Who is now covering (assigned by HR)
+  reassignedBy          String?  // HR Head who reassigned
+  status                String   @default("PENDING") // PENDING, REASSIGNED, CANCELLED
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([originalLeaveId])
+  @@index([coverEmployeeLeaveId])
   @@index([status])
 }
 
@@ -117,10 +134,10 @@ model LeaveBalance {
   employeeId  String   @unique
   employee    User     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   year        Int
-  annual      Int      @default(14)
-  casual      Int      @default(7)
-  medical     Int      @default(0)
-  official    Int      @default(0)
+  annual      Float    @default(14)
+  casual      Float    @default(7)
+  medical     Float    @default(7)
+  official    Float    @default(0)
   updatedAt   DateTime @updatedAt
 
   @@index([year])
@@ -272,6 +289,8 @@ enum NotificationType {
   ATTENDANCE_ALERT
   LEAVE_BALANCE_LOW
   SYSTEM_ALERT
+  COVERING_DUTY_CONFLICT
+  DUTY_REASSIGNMENT_REQUIRED
 }
 
 enum DeviceType {

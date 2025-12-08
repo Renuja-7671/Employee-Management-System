@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
           year: currentYear,
           annual: 14,
           casual: 7,
-          medical: 0,
+          medical: 7,
           official: 0,
         },
       });

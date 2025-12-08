@@ -57,6 +57,7 @@ export function AdminHeader() {
     if (pathname.includes('/admins')) return 'admins';
     if (pathname.includes('/employees')) return 'employees';
     if (pathname.includes('/profiles')) return 'profiles';
+    if (pathname.includes('/duty-reassignment')) return 'duty-reassignment';
     if (pathname.includes('/leaves')) return 'leaves';
     if (pathname.includes('/attendance')) return 'attendance';
     return 'overview';
@@ -147,7 +148,7 @@ export function AdminHeader() {
       <div className="bg-white py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <Tabs value={getActiveTab()} className="w-full">
-            <TabsList className="grid w-full grid-cols-6 h-12">
+            <TabsList className="grid w-full grid-cols-7 h-12">
               <TabsTrigger value="overview" asChild>
                 <Link href="/admin/dashboard">Overview</Link>
               </TabsTrigger>
@@ -159,6 +160,18 @@ export function AdminHeader() {
               </TabsTrigger>
               <TabsTrigger value="leaves" asChild>
                 <Link href="/admin/leaves">Leave Requests</Link>
+              </TabsTrigger>
+              <TabsTrigger value="duty-reassignment" asChild>
+                <Link href="/admin/duty-reassignment">
+                  <span className="flex items-center gap-1">
+                    Duty Reassignment
+                    {unreadCount > 0 && (
+                      <Badge className="h-4 w-4 flex items-center justify-center p-0 text-[10px] ml-1" variant="destructive">
+                        {unreadCount}
+                      </Badge>
+                    )}
+                  </span>
+                </Link>
               </TabsTrigger>
               <TabsTrigger value="attendance" asChild>
                 <Link href="/admin/attendance">Attendance</Link>

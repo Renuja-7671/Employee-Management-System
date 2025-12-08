@@ -19,10 +19,11 @@ import {
   LineChart,
   Line
 } from 'recharts';
-import { Download, Calendar, TrendingUp, Users, FileText, UserCheck } from 'lucide-react';
+import { Download, Calendar, TrendingUp, Users, FileText, UserCheck, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { Input } from '@/components/ui/input';
 
 // Extend jsPDF type to include autoTable
 declare module 'jspdf' {
@@ -50,6 +51,10 @@ interface EmployeeLeaveSummary {
   };
   totalApprovedLeaves: number;
   leaveFrequency: number;
+  noPayLeaves: {
+    count: number;
+    days: number;
+  };
   remainingBalance: {
     annual: number;
     casual: number;
@@ -95,6 +100,7 @@ export default function LeaveSummary() {
   const [todayAttendance, setTodayAttendance] = useState<TodayAttendance | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     fetchLeaveSummary();
@@ -149,38 +155,42 @@ export default function LeaveSummary() {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.width;
 
-    // Add title
+    // Add logo and company name header
+    const logoImg = new Image();
+    logoImg.src = '/images/logo-dark.png';
+
+    // Add logo (centered at top)
+    try {
+      doc.addImage(logoImg, 'PNG', pageWidth / 2 - 25, 10, 50, 20);
+    } catch (error) {
+      console.error('Error adding logo to PDF:', error);
+    }
+
+    // Add report title
     doc.setFontSize(18);
-    doc.setTextColor(20, 184, 166);
-    doc.text('Employee Leave Summary Report', pageWidth / 2, 20, { align: 'center' });
+    doc.setTextColor(59, 130, 246);
+    doc.text('Employee Leave Summary Report', pageWidth / 2, 42, { align: 'center' });
 
     doc.setFontSize(12);
     doc.setTextColor(0, 0, 0);
-    doc.text(`Year: ${year}`, pageWidth / 2, 30, { align: 'center' });
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 37, { align: 'center' });
+    doc.text(`Year: ${year}`, pageWidth / 2, 50, { align: 'center' });
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 57, { align: 'center' });
 
     // Add company statistics
     doc.setFontSize(14);
     doc.setTextColor(59, 130, 246);
-    doc.text('Company Statistics', 14, 50);
+    doc.text('Company Statistics', 14, 68);
 
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
-    doc.text(`Total Employees: ${companyStats?.totalEmployees || 0}`, 14, 58);
-    doc.text(`Total Leaves Approved: ${companyStats?.totalLeavesApproved || 0} days`, 14, 64);
-    doc.text(`Average Leaves Per Employee: ${companyStats?.averageLeavesPerEmployee || 0} days`, 14, 70);
-
-    // Add leave type distribution
-    doc.text('Leave Distribution by Type:', 14, 80);
-    doc.text(`Annual: ${companyStats?.leaveTypeDistribution.ANNUAL || 0} days`, 20, 86);
-    doc.text(`Casual: ${companyStats?.leaveTypeDistribution.CASUAL || 0} days`, 20, 92);
-    doc.text(`Medical: ${companyStats?.leaveTypeDistribution.MEDICAL || 0} days`, 20, 98);
-    doc.text(`Official: ${companyStats?.leaveTypeDistribution.OFFICIAL || 0} days`, 20, 104);
+    doc.text(`Total Employees: ${companyStats?.totalEmployees || 0}`, 14, 76);
+    doc.text(`Total Leaves Approved: ${companyStats?.totalLeavesApproved || 0} days`, 14, 82);
+    doc.text(`Average Leaves Per Employee: ${companyStats?.averageLeavesPerEmployee || 0} days`, 14, 88);
 
     // Add employee details table
     doc.setFontSize(14);
     doc.setTextColor(59, 130, 246);
-    doc.text('Employee Leave Details', 14, 118);
+    doc.text('Employee Leave Details', 14, 98);
 
     const tableData = employees.map(emp => [
       emp.employee.employeeId,
@@ -191,26 +201,43 @@ export default function LeaveSummary() {
       emp.leaveTaken.MEDICAL.approved.toString(),
       emp.leaveTaken.OFFICIAL.approved.toString(),
       emp.totalApprovedLeaves.toString(),
+      emp.noPayLeaves && emp.noPayLeaves.count > 0
+        ? `${emp.noPayLeaves.count} (${emp.noPayLeaves.days}d)`
+        : '-',
     ]);
 
     autoTable(doc, {
-      startY: 125,
-      head: [['EMP ID', 'Name', 'Department', 'Annual', 'Casual', 'Medical', 'Official', 'Total']],
+      startY: 105,
+      head: [['EMP ID', 'Name', 'Department', 'Annual', 'Casual', 'Medical', 'Official', 'Total', 'No Pay']],
       body: tableData,
       theme: 'grid',
       headStyles: { fillColor: [20, 184, 166], textColor: 255 },
       styles: { fontSize: 8, cellPadding: 2 },
       columnStyles: {
-        0: { cellWidth: 20 },
-        1: { cellWidth: 35 },
-        2: { cellWidth: 30 },
-        3: { cellWidth: 18 },
-        4: { cellWidth: 18 },
-        5: { cellWidth: 18 },
-        6: { cellWidth: 18 },
-        7: { cellWidth: 18 },
+        0: { cellWidth: 18 },
+        1: { cellWidth: 32 },
+        2: { cellWidth: 28 },
+        3: { cellWidth: 16 },
+        4: { cellWidth: 16 },
+        5: { cellWidth: 16 },
+        6: { cellWidth: 16 },
+        7: { cellWidth: 16 },
+        8: { cellWidth: 20 },
       },
     });
+
+    // Add leave type distribution after the table
+    const finalY = (doc as any).lastAutoTable.finalY || 105;
+    doc.setFontSize(14);
+    doc.setTextColor(59, 130, 246);
+    doc.text('Leave Distribution by Type:', 14, finalY + 15);
+
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Annual: ${companyStats?.leaveTypeDistribution.ANNUAL || 0} days`, 20, finalY + 23);
+    doc.text(`Casual: ${companyStats?.leaveTypeDistribution.CASUAL || 0} days`, 20, finalY + 29);
+    doc.text(`Medical: ${companyStats?.leaveTypeDistribution.MEDICAL || 0} days`, 20, finalY + 35);
+    doc.text(`Official: ${companyStats?.leaveTypeDistribution.OFFICIAL || 0} days`, 20, finalY + 41);
 
     // Save PDF
     doc.save(`Leave_Summary_Report_${year}.pdf`);
@@ -230,6 +257,17 @@ export default function LeaveSummary() {
   const selectedEmployeeData = selectedEmployee
     ? employees.find(e => e.employee.id === selectedEmployee)
     : null;
+
+  // Filter employees based on search query
+  const filteredEmployees = employees.filter(emp => {
+    const query = searchQuery.toLowerCase();
+    return (
+      emp.employee.name.toLowerCase().includes(query) ||
+      emp.employee.employeeId.toLowerCase().includes(query) ||
+      (emp.employee.department && emp.employee.department.toLowerCase().includes(query)) ||
+      (emp.employee.position && emp.employee.position.toLowerCase().includes(query))
+    );
+  });
 
   return (
     <div className="space-y-6">
@@ -419,9 +457,26 @@ export default function LeaveSummary() {
         </div>
       )}
 
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+        <Input
+          type="text"
+          placeholder="Search by name, employee ID, department, or position..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-10 w-full"
+        />
+        {searchQuery && (
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500">
+            {filteredEmployees.length} of {employees.length} employees
+          </div>
+        )}
+      </div>
+
       {/* Employee Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {employees.map(emp => {
+        {filteredEmployees.map(emp => {
           const leaveData = [
             { type: 'Annual', value: emp.leaveTaken.ANNUAL.approved, color: LEAVE_TYPE_COLORS.ANNUAL },
             { type: 'Casual', value: emp.leaveTaken.CASUAL.approved, color: LEAVE_TYPE_COLORS.CASUAL },
@@ -491,11 +546,33 @@ export default function LeaveSummary() {
                     <span className="font-semibold">{emp.leaveFrequency} days/month</span>
                   </div>
                 </div>
+
+                {/* No Pay Leaves */}
+                {emp.noPayLeaves && emp.noPayLeaves.count > 0 && (
+                  <div className="pt-2 border-t bg-red-50 -mx-6 px-6 py-3 rounded-b-lg">
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                        <span className="text-xs font-semibold text-red-700">No Pay Leaves:</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-sm font-bold text-red-700">{emp.noPayLeaves.count}</span>
+                        <span className="text-xs text-red-600 ml-1">({emp.noPayLeaves.days} days)</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           );
         })}
       </div>
+
+      {filteredEmployees.length === 0 && employees.length > 0 && (
+        <div className="text-center py-12">
+          <p className="text-gray-500">No employees found matching &quot;{searchQuery}&quot;</p>
+        </div>
+      )}
 
       {employees.length === 0 && (
         <div className="text-center py-12">

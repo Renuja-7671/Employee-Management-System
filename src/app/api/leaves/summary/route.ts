@@ -81,6 +81,7 @@ export async function GET(request: NextRequest) {
         totalDays: true,
         startDate: true,
         endDate: true,
+        isNoPay: true,
       },
     });
 
@@ -107,9 +108,18 @@ export async function GET(request: NextRequest) {
         OFFICIAL: { approved: 0, pending: 0, declined: 0 },
       };
 
+      // Calculate No Pay leaves (approved leaves with isNoPay = true)
+      let noPayLeaveCount = 0;
+      let noPayLeaveDays = 0;
+
       employeeLeaves.forEach(leave => {
         if (leave.status === 'APPROVED') {
           leaveTaken[leave.leaveType].approved += leave.totalDays;
+          // Count No Pay leaves
+          if ((leave as any).isNoPay === true) {
+            noPayLeaveCount += 1;
+            noPayLeaveDays += leave.totalDays;
+          }
         } else if (leave.status === 'PENDING_COVER' || leave.status === 'PENDING_ADMIN') {
           leaveTaken[leave.leaveType].pending += leave.totalDays;
         } else if (leave.status === 'DECLINED') {
@@ -167,6 +177,10 @@ export async function GET(request: NextRequest) {
         leaveTaken,
         totalApprovedLeaves,
         leaveFrequency: parseFloat(leaveFrequency.toFixed(2)),
+        noPayLeaves: {
+          count: noPayLeaveCount,
+          days: noPayLeaveDays,
+        },
         remainingBalance,
         monthlyDistribution,
         leaveHistory: employeeLeaves.map(l => ({

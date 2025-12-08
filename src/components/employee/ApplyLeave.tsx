@@ -39,7 +39,6 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
     isHalfDay: false,
   });
   const [medicalCertFile, setMedicalCertFile] = useState<File | null>(null);
-  const [medicalDaysInput, setMedicalDaysInput] = useState<string>('');
 
   useEffect(() => {
     fetchData();
@@ -267,15 +266,22 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
 
     const days = calculateDays();
 
-    // Validate leave balance (not applicable for official leave)
+    // Check if this will be a No Pay leave and warn user
+    let isNoPayLeave = false;
     if (formData.leaveType === 'annual' && leaveBalance.annual < days) {
-      toast.error('Insufficient annual leave balance');
-      return;
+      isNoPayLeave = true;
+      const confirmed = window.confirm(
+        `⚠️ WARNING: You have insufficient annual leave balance (${leaveBalance.annual} days remaining).\n\nThis will be a NO PAY leave if approved.\n\nDo you want to continue?`
+      );
+      if (!confirmed) return;
     }
 
     if (formData.leaveType === 'casual' && leaveBalance.casual < formData.numberOfDays) {
-      toast.error('Insufficient casual leave balance');
-      return;
+      isNoPayLeave = true;
+      const confirmed = window.confirm(
+        `⚠️ WARNING: You have insufficient casual leave balance (${leaveBalance.casual} days remaining).\n\nThis will be a NO PAY leave if approved.\n\nDo you want to continue?`
+      );
+      if (!confirmed) return;
     }
 
     // Validate annual leave max 3 days
@@ -296,9 +302,27 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
       return;
     }
 
-    // Validate medical certificate
-    if (formData.leaveType === 'medical' && !medicalCertFile) {
-      toast.error('Medical certificate is required for medical leave');
+    // Check if medical leave will be No Pay
+    if (formData.leaveType === 'medical' && leaveBalance.medical < formData.numberOfDays) {
+      isNoPayLeave = true;
+      const confirmed = window.confirm(
+        `⚠️ WARNING: You have insufficient medical leave balance (${leaveBalance.medical} days remaining).\n\nThis will be a NO PAY leave if approved.\n\nDo you want to continue?`
+      );
+      if (!confirmed) return;
+    }
+
+    // Validate medical leave allowed days
+    if (formData.leaveType === 'medical') {
+      const allowedDays = [0.5, 1, 1.5, 2, 2.5, 3];
+      if (!allowedDays.includes(formData.numberOfDays)) {
+        toast.error('Medical leave can only be 0.5, 1, 1.5, 2, 2.5, or 3 days');
+        return;
+      }
+    }
+
+    // Validate medical certificate (only required for more than 1 day)
+    if (formData.leaveType === 'medical' && formData.numberOfDays > 1 && !medicalCertFile) {
+      toast.error('Medical certificate is required for medical leave exceeding 1 day');
       return;
     }
 
@@ -329,7 +353,18 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
       });
 
       if (response.ok) {
-        toast.success('Leave request submitted successfully. Waiting for cover employee approval.');
+        const data = await response.json();
+
+        // Show success message with No Pay warning if applicable
+        if (data.isNoPay) {
+          toast.warning(
+            '⚠️ Leave request submitted successfully. NOTE: This is a NO PAY leave due to insufficient balance. Waiting for cover employee approval.',
+            { duration: 8000 }
+          );
+        } else {
+          toast.success('Leave request submitted successfully. Waiting for cover employee approval.');
+        }
+
         setFormData({
           leaveType: '',
           numberOfDays: 1,
@@ -341,7 +376,6 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
           isHalfDay: false,
         });
         setMedicalCertFile(null);
-        setMedicalDaysInput(''); // Reset medical days input
         onSuccess();
       } else {
         const data = await response.json();
@@ -364,20 +398,29 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
+            <div className={`text-center p-4 rounded-lg ${leaveBalance.annual === 0 ? 'bg-red-100 border-2 border-red-300' : 'bg-blue-50'}`}>
               <p className="text-sm text-gray-600">Annual Leave</p>
-              <p className="text-2xl">{leaveBalance.annual}</p>
+              <p className={`text-2xl ${leaveBalance.annual === 0 ? 'text-red-600' : ''}`}>{leaveBalance.annual}</p>
               <p className="text-xs text-gray-500">days remaining</p>
+              {leaveBalance.annual === 0 && (
+                <p className="text-xs text-red-600 mt-1 font-semibold">⚠️ No Pay if applied</p>
+              )}
             </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
+            <div className={`text-center p-4 rounded-lg ${leaveBalance.casual === 0 ? 'bg-red-100 border-2 border-red-300' : 'bg-green-50'}`}>
               <p className="text-sm text-gray-600">Casual Leave</p>
-              <p className="text-2xl">{leaveBalance.casual}</p>
+              <p className={`text-2xl ${leaveBalance.casual === 0 ? 'text-red-600' : ''}`}>{leaveBalance.casual}</p>
               <p className="text-xs text-gray-500">days remaining</p>
+              {leaveBalance.casual === 0 && (
+                <p className="text-xs text-red-600 mt-1 font-semibold">⚠️ No Pay if applied</p>
+              )}
             </div>
-            <div className="text-center p-4 bg-orange-50 rounded-lg">
+            <div className={`text-center p-4 rounded-lg ${leaveBalance.medical === 0 ? 'bg-red-100 border-2 border-red-300' : 'bg-orange-50'}`}>
               <p className="text-sm text-gray-600">Medical Leave</p>
-              <p className="text-2xl">{leaveCounts.medicalLeaveTaken}</p>
-              <p className="text-xs text-gray-500">leaves taken this year</p>
+              <p className={`text-2xl ${leaveBalance.medical === 0 ? 'text-red-600' : ''}`}>{leaveBalance.medical}</p>
+              <p className="text-xs text-gray-500">days remaining</p>
+              {leaveBalance.medical === 0 && (
+                <p className="text-xs text-red-600 mt-1 font-semibold">⚠️ No Pay if applied</p>
+              )}
             </div>
             <div className="text-center p-4 bg-purple-50 rounded-lg">
               <p className="text-sm text-gray-600">Official Leave</p>
@@ -410,7 +453,6 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
                     startDate: '',
                     endDate: ''
                   });
-                  setMedicalDaysInput(''); // Reset medical days input when changing leave type
                 }}
                 required
               >
@@ -441,7 +483,7 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
               )}
               {formData.leaveType === 'medical' && (
                 <p className="text-xs text-orange-600 mt-1">
-                  Medical leave: can apply 4 days before today or any future date, medical certificate required
+                  Medical leave: 0.5, 1, 1.5, 2, 2.5, or 3 days only. Certificate required if more than 1 day. Can apply 4 days before today or any future date.
                 </p>
               )}
             </div>
@@ -471,22 +513,26 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
             {formData.leaveType === 'medical' && (
               <div className="space-y-2">
                 <Label htmlFor="numberOfDays">Number of Days *</Label>
-                <Input
-                  id="numberOfDays"
-                  type="number"
-                  min="1"
-                  max="365"
-                  step="1"
-                  value={medicalDaysInput}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    setMedicalDaysInput(value);
-                    setFormData({ ...formData, numberOfDays: parseInt(value) || 0 });
-                  }}
-                  placeholder="e.g., 5"
+                <Select
+                  value={formData.numberOfDays.toString()}
+                  onValueChange={(value) => setFormData({ ...formData, numberOfDays: parseFloat(value) })}
                   required
-                />
-                <p className="text-xs text-gray-500">Enter the number of days needed for medical leave</p>
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select number of days" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.5">0.5 day (Half day) - No certificate needed</SelectItem>
+                    <SelectItem value="1">1 day - No certificate needed</SelectItem>
+                    <SelectItem value="1.5">1.5 days - Certificate required</SelectItem>
+                    <SelectItem value="2">2 days - Certificate required</SelectItem>
+                    <SelectItem value="2.5">2.5 days - Certificate required</SelectItem>
+                    <SelectItem value="3">3 days - Certificate required</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">
+                  Medical certificate is only required for leave exceeding 1 day
+                </p>
               </div>
             )}
 
@@ -595,7 +641,7 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
               />
             </div>
 
-            {formData.leaveType === 'medical' && (
+            {formData.leaveType === 'medical' && formData.numberOfDays > 1 && (
               <div className="space-y-2">
                 <Label htmlFor="medicalCert">Medical Certificate *</Label>
                 <div className="flex items-center gap-2">
@@ -613,6 +659,17 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
                     File selected: {medicalCertFile.name}
                   </p>
                 )}
+                <p className="text-xs text-orange-600">
+                  Medical certificate is required for leave exceeding 1 day
+                </p>
+              </div>
+            )}
+
+            {formData.leaveType === 'medical' && formData.numberOfDays <= 1 && (
+              <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                <p className="text-xs text-green-700">
+                  ✓ No medical certificate required for {formData.numberOfDays === 0.5 ? 'half day' : '1 day'} medical leave
+                </p>
               </div>
             )}
 
