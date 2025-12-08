@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -30,10 +31,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Clock, Download, Plus } from 'lucide-react';
+import { Clock, Download, Plus, Fingerprint, Monitor } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAttendance, Attendance } from '@/lib/api/attendance';
 import { getEmployees, Employee as EmployeeAPI } from '@/lib/api/employees';
+import { BiometricMappings } from './BiometricMappings';
+import { BiometricDevices } from './BiometricDevices';
 
 interface Employee extends EmployeeAPI {
   name: string;
@@ -194,22 +197,39 @@ export function AttendanceManagement() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Attendance Management</CardTitle>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={exportToCSV}>
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
-              <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Mark Attendance
+      <Tabs defaultValue="records" className="w-full">
+        <TabsList className="grid w-full max-w-2xl grid-cols-3">
+          <TabsTrigger value="records">
+            <Clock className="w-4 h-4 mr-2" />
+            Attendance Records
+          </TabsTrigger>
+          <TabsTrigger value="mappings">
+            <Fingerprint className="w-4 h-4 mr-2" />
+            Employee Mappings
+          </TabsTrigger>
+          <TabsTrigger value="devices">
+            <Monitor className="w-4 h-4 mr-2" />
+            Devices
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="records" className="mt-6">
+          <Card>
+            <CardHeader>
+              <div className="flex justify-between items-center">
+                <CardTitle>Attendance Records</CardTitle>
+                <div className="flex gap-2">
+                  <Button variant="outline" onClick={exportToCSV}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
                   </Button>
-                </DialogTrigger>
+                  <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Mark Attendance
+                      </Button>
+                    </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Mark Employee Attendance</DialogTitle>
@@ -351,6 +371,16 @@ export function AttendanceManagement() {
           </div>
         </CardContent>
       </Card>
+        </TabsContent>
+
+        <TabsContent value="mappings" className="mt-6">
+          <BiometricMappings />
+        </TabsContent>
+
+        <TabsContent value="devices" className="mt-6">
+          <BiometricDevices />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

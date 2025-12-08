@@ -68,7 +68,7 @@ Your system uses **exactly 2 cron jobs** (within free tier limit):
 **Via Device Menu:**
 1. Press `Menu` on the device
 2. Go to `Communication` → `Network`
-3. Set static IP (e.g., `192.168.1.100`)
+3. Set static IP (e.g., `192.168.1.200`)
 4. Set subnet mask (e.g., `255.255.255.0`)
 5. Set gateway (e.g., `192.168.1.1`)
 6. Set DNS (e.g., `8.8.8.8`)
@@ -91,7 +91,7 @@ http://192.168.1.100
 
 # Default credentials
 Username: admin
-Password: (set during initial setup)
+Password: Uniquein@2
 ```
 
 ---

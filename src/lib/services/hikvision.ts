@@ -336,7 +336,7 @@ export class HikvisionClient {
  */
 export function createHikvisionClient(): HikvisionClient {
   const config: HikvisionConfig = {
-    host: process.env.HIKVISION_HOST || '192.168.1.64',
+    host: process.env.HIKVISION_HOST || '192.168.1.200',
     port: parseInt(process.env.HIKVISION_PORT || '80'),
     username: process.env.HIKVISION_USERNAME || 'admin',
     password: process.env.HIKVISION_PASSWORD || '',
