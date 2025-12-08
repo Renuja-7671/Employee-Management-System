@@ -390,42 +390,42 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Leave Balance Summary */}
       <Card>
-        <CardHeader>
-          <CardTitle>Your Leave Balance</CardTitle>
+        <CardHeader className="px-4 sm:px-6 pt-4 sm:pt-6">
+          <CardTitle className="text-sm sm:text-base">Your Leave Balance</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <div className={`text-center p-4 rounded-lg ${leaveBalance.annual === 0 ? 'bg-red-100 border-2 border-red-300' : 'bg-blue-50'}`}>
-              <p className="text-sm text-gray-600">Annual Leave</p>
-              <p className={`text-2xl ${leaveBalance.annual === 0 ? 'text-red-600' : ''}`}>{leaveBalance.annual}</p>
-              <p className="text-xs text-gray-500">days remaining</p>
+        <CardContent className="px-4 sm:px-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+            <div className={`text-center p-2 sm:p-4 rounded-lg ${leaveBalance.annual === 0 ? 'bg-red-100 border-2 border-red-300' : 'bg-blue-50'}`}>
+              <p className="text-xs sm:text-sm text-gray-600">Annual Leave</p>
+              <p className={`text-xl sm:text-2xl font-bold ${leaveBalance.annual === 0 ? 'text-red-600' : ''}`}>{leaveBalance.annual}</p>
+              <p className="text-[10px] sm:text-xs text-gray-500">days remaining</p>
               {leaveBalance.annual === 0 && (
-                <p className="text-xs text-red-600 mt-1 font-semibold">⚠️ No Pay if applied</p>
+                <p className="text-[10px] sm:text-xs text-red-600 mt-1 font-semibold">⚠️ No Pay if applied</p>
               )}
             </div>
-            <div className={`text-center p-4 rounded-lg ${leaveBalance.casual === 0 ? 'bg-red-100 border-2 border-red-300' : 'bg-green-50'}`}>
-              <p className="text-sm text-gray-600">Casual Leave</p>
-              <p className={`text-2xl ${leaveBalance.casual === 0 ? 'text-red-600' : ''}`}>{leaveBalance.casual}</p>
-              <p className="text-xs text-gray-500">days remaining</p>
+            <div className={`text-center p-2 sm:p-4 rounded-lg ${leaveBalance.casual === 0 ? 'bg-red-100 border-2 border-red-300' : 'bg-green-50'}`}>
+              <p className="text-xs sm:text-sm text-gray-600">Casual Leave</p>
+              <p className={`text-xl sm:text-2xl font-bold ${leaveBalance.casual === 0 ? 'text-red-600' : ''}`}>{leaveBalance.casual}</p>
+              <p className="text-[10px] sm:text-xs text-gray-500">days remaining</p>
               {leaveBalance.casual === 0 && (
-                <p className="text-xs text-red-600 mt-1 font-semibold">⚠️ No Pay if applied</p>
+                <p className="text-[10px] sm:text-xs text-red-600 mt-1 font-semibold">⚠️ No Pay if applied</p>
               )}
             </div>
-            <div className={`text-center p-4 rounded-lg ${leaveBalance.medical === 0 ? 'bg-red-100 border-2 border-red-300' : 'bg-orange-50'}`}>
-              <p className="text-sm text-gray-600">Medical Leave</p>
-              <p className={`text-2xl ${leaveBalance.medical === 0 ? 'text-red-600' : ''}`}>{leaveBalance.medical}</p>
-              <p className="text-xs text-gray-500">days remaining</p>
+            <div className={`text-center p-2 sm:p-4 rounded-lg ${leaveBalance.medical === 0 ? 'bg-red-100 border-2 border-red-300' : 'bg-orange-50'}`}>
+              <p className="text-xs sm:text-sm text-gray-600">Medical Leave</p>
+              <p className={`text-xl sm:text-2xl font-bold ${leaveBalance.medical === 0 ? 'text-red-600' : ''}`}>{leaveBalance.medical}</p>
+              <p className="text-[10px] sm:text-xs text-gray-500">days remaining</p>
               {leaveBalance.medical === 0 && (
-                <p className="text-xs text-red-600 mt-1 font-semibold">⚠️ No Pay if applied</p>
+                <p className="text-[10px] sm:text-xs text-red-600 mt-1 font-semibold">⚠️ No Pay if applied</p>
               )}
             </div>
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
-              <p className="text-sm text-gray-600">Official Leave</p>
-              <p className="text-2xl">{leaveCounts.officialLeaveTaken}</p>
-              <p className="text-xs text-gray-500">leaves taken this year</p>
+            <div className="text-center p-2 sm:p-4 bg-purple-50 rounded-lg">
+              <p className="text-xs sm:text-sm text-gray-600">Official Leave</p>
+              <p className="text-xl sm:text-2xl font-bold">{leaveCounts.officialLeaveTaken}</p>
+              <p className="text-[10px] sm:text-xs text-gray-500">leaves taken this year</p>
             </div>
           </div>
         </CardContent>

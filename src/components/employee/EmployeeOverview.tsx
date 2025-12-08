@@ -89,58 +89,58 @@ export function EmployeeOverview({ user }: EmployeeOverviewProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* Leave Balance Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Annual Leave</CardTitle>
-            <Calendar className="h-4 w-4 text-blue-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 sm:px-6 pt-4 sm:pt-6">
+            <CardTitle className="text-xs sm:text-sm">Annual Leave</CardTitle>
+            <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{leaveBalance.annual} days</div>
+          <CardContent className="px-4 sm:px-6">
+            <div className="text-xl sm:text-2xl font-bold">{leaveBalance.annual} <span className="text-sm sm:text-base font-normal">days</span></div>
             <Progress value={(leaveBalance.annual / 14) * 100} className="mt-2" />
-            <p className="text-xs text-muted-foreground mt-2">
-              {leaveBalance.annual} of 14 days remaining
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
+              {leaveBalance.annual} of 14 remaining
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Casual Leave</CardTitle>
-            <Umbrella className="h-4 w-4 text-green-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 sm:px-6 pt-4 sm:pt-6">
+            <CardTitle className="text-xs sm:text-sm">Casual Leave</CardTitle>
+            <Umbrella className="h-3 w-3 sm:h-4 sm:w-4 text-green-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{leaveBalance.casual} days</div>
+          <CardContent className="px-4 sm:px-6">
+            <div className="text-xl sm:text-2xl font-bold">{leaveBalance.casual} <span className="text-sm sm:text-base font-normal">days</span></div>
             <Progress value={(leaveBalance.casual / 7) * 100} className="mt-2" />
-            <p className="text-xs text-muted-foreground mt-2">
-              {leaveBalance.casual} of 7 days remaining
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
+              {leaveBalance.casual} of 7 remaining
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Medical Leave</CardTitle>
-            <AlertCircle className="h-4 w-4 text-orange-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 sm:px-6 pt-4 sm:pt-6">
+            <CardTitle className="text-xs sm:text-sm">Medical Leave</CardTitle>
+            <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{leaveCounts.medicalLeaveTaken}</div>
-            <p className="text-xs text-muted-foreground mt-2">
+          <CardContent className="px-4 sm:px-6">
+            <div className="text-xl sm:text-2xl font-bold">{leaveCounts.medicalLeaveTaken}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
               leaves taken this year
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Official Leave</CardTitle>
-            <Calendar className="h-4 w-4 text-purple-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 sm:px-6 pt-4 sm:pt-6">
+            <CardTitle className="text-xs sm:text-sm">Official Leave</CardTitle>
+            <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-purple-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{leaveCounts.officialLeaveTaken}</div>
-            <p className="text-xs text-muted-foreground mt-2">
+          <CardContent className="px-4 sm:px-6">
+            <div className="text-xl sm:text-2xl font-bold">{leaveCounts.officialLeaveTaken}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
               leaves taken this year
             </p>
           </CardContent>
@@ -148,57 +148,57 @@ export function EmployeeOverview({ user }: EmployeeOverviewProps) {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-3 sm:gap-4 grid-cols-2">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Pending Requests</CardTitle>
-            <Clock className="h-4 w-4 text-orange-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 sm:px-6 pt-4 sm:pt-6">
+            <CardTitle className="text-xs sm:text-sm">Pending Requests</CardTitle>
+            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{stats.pendingLeaves}</div>
-            <p className="text-xs text-muted-foreground">Awaiting approval</p>
+          <CardContent className="px-4 sm:px-6">
+            <div className="text-xl sm:text-2xl font-bold">{stats.pendingLeaves}</div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Awaiting approval</p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm">Attendance This Month</CardTitle>
-            <Clock className="h-4 w-4 text-blue-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 sm:px-6 pt-4 sm:pt-6">
+            <CardTitle className="text-xs sm:text-sm">Attendance This Month</CardTitle>
+            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-blue-500" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl">{stats.attendanceThisMonth} days</div>
-            <p className="text-xs text-muted-foreground">Present days</p>
+          <CardContent className="px-4 sm:px-6">
+            <div className="text-xl sm:text-2xl font-bold">{stats.attendanceThisMonth} <span className="text-sm sm:text-base font-normal">days</span></div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Present days</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Quick Info */}
       <Card>
-        <CardHeader>
-          <CardTitle>Important Information</CardTitle>
+        <CardHeader className="px-4 sm:px-6 pt-4 sm:pt-6">
+          <CardTitle className="text-sm sm:text-base">Important Information</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg">
-            <Calendar className="h-5 w-5 text-blue-600 mt-0.5" />
-            <div>
-              <p className="text-sm">Annual Leave Limit</p>
-              <p className="text-xs text-gray-600">Maximum 3 continuous days per request</p>
+        <CardContent className="space-y-2 sm:space-y-3 px-4 sm:px-6">
+          <div className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 bg-blue-50 rounded-lg">
+            <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-medium">Annual Leave Limit</p>
+              <p className="text-[10px] sm:text-xs text-gray-600">Maximum 3 continuous days per request</p>
             </div>
           </div>
-          <div className="flex items-start gap-3 p-3 bg-green-50 rounded-lg">
-            <Clock className="h-5 w-5 text-green-600 mt-0.5" />
-            <div>
-              <p className="text-sm">Working Hours</p>
-              <p className="text-xs text-gray-600">
-                Weekdays: 8:30 AM - 5:00 PM | Weekends: 8:30 AM - 1:30 PM
+          <div className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 bg-green-50 rounded-lg">
+            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 mt-0.5 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-medium">Working Hours</p>
+              <p className="text-[10px] sm:text-xs text-gray-600">
+                Weekdays: 8:30 AM - 5:00 PM<br className="sm:hidden" /><span className="hidden sm:inline"> | </span>Weekends: 8:30 AM - 1:30 PM
               </p>
             </div>
           </div>
-          <div className="flex items-start gap-3 p-3 bg-orange-50 rounded-lg">
-            <AlertCircle className="h-5 w-5 text-orange-600 mt-0.5" />
-            <div>
-              <p className="text-sm">Cover Employee Required</p>
-              <p className="text-xs text-gray-600">
+          <div className="flex items-start gap-2 sm:gap-3 p-2 sm:p-3 bg-orange-50 rounded-lg">
+            <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-orange-600 mt-0.5 flex-shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm font-medium">Cover Employee Required</p>
+              <p className="text-[10px] sm:text-xs text-gray-600">
                 You must get approval from a cover employee before submitting leave requests
               </p>
             </div>
