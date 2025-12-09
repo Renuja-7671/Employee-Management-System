@@ -8,8 +8,14 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
+    const employeeId = searchParams.get('employeeId');
 
     const where: any = {};
+
+    // Filter by employeeId if provided (for employee portal)
+    if (employeeId) {
+      where.employeeId = employeeId;
+    }
 
     if (startDate && endDate) {
       where.date = {
