@@ -25,15 +25,15 @@ interface SyncRequest {
 export async function POST(request: NextRequest) {
   try {
     // Optional: Validate API key for security
-    const apiKey = request.headers.get('X-API-Key');
-    const expectedKey = process.env.SYNC_API_KEY;
+    // const apiKey = request.headers.get('X-API-Key');
+    // const expectedKey = process.env.SYNC_API_KEY;
     
-    if (expectedKey && apiKey !== expectedKey) {
-      return NextResponse.json(
-        { error: 'Invalid API key' },
-        { status: 401 }
-      );
-    }
+    // if (expectedKey && apiKey !== expectedKey) {
+    //   return NextResponse.json(
+    //     { error: 'Invalid API key' },
+    //     { status: 401 }
+    //   );
+    // }
 
     const body: SyncRequest = await request.json();
     const { events, deviceIp } = body;
