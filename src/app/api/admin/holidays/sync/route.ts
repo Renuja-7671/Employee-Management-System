@@ -8,8 +8,11 @@ import { prisma } from '@/lib/prisma';
 const GITHUB_HOLIDAYS_URL = 'https://raw.githubusercontent.com/Dilshan-H/srilanka-holidays/main/json';
 
 interface HolidayData {
-  date: string;
-  name: string;
+  start?: string; // New format
+  end?: string; // New format
+  date?: string; // Old format (fallback)
+  summary?: string; // New format
+  name?: string; // Old format (fallback)
   type?: string;
   categories?: string[];
 }
@@ -175,13 +178,22 @@ export async function POST(request: NextRequest) {
 
     for (const holiday of holidays) {
       try {
-        // Parse the date
-        const holidayDate = new Date(holiday.date);
-        if (isNaN(holidayDate.getTime())) {
-          results.errors.push(`Invalid date for ${holiday.name}: ${holiday.date}`);
+        // Support both old and new API formats
+        const dateString = holiday.start || holiday.date;
+        const holidayName = holiday.summary || holiday.name;
+
+        if (!dateString || !holidayName) {
+          results.errors.push(`Missing date or name for holiday: ${JSON.stringify(holiday)}`);
           continue;
         }
-        
+
+        // Parse the date
+        const holidayDate = new Date(dateString);
+        if (isNaN(holidayDate.getTime())) {
+          results.errors.push(`Invalid date for ${holidayName}: ${dateString}`);
+          continue;
+        }
+
         // Normalize to start of day in UTC
         holidayDate.setUTCHours(0, 0, 0, 0);
 
@@ -189,7 +201,7 @@ export async function POST(request: NextRequest) {
         const existing = await prisma.publicHoliday.findFirst({
           where: {
             date: holidayDate,
-            name: holiday.name,
+            name: holidayName,
           },
         });
 
@@ -201,7 +213,7 @@ export async function POST(request: NextRequest) {
         // Create the holiday
         await prisma.publicHoliday.create({
           data: {
-            name: holiday.name,
+            name: holidayName,
             date: holidayDate,
             description: holiday.type || (holiday.categories?.join(', ')) || 'Public Holiday',
           },
@@ -209,7 +221,8 @@ export async function POST(request: NextRequest) {
 
         results.created++;
       } catch (err: any) {
-        results.errors.push(`${holiday.name}: ${err.message}`);
+        const holidayName = holiday.summary || holiday.name || 'Unknown';
+        results.errors.push(`${holidayName}: ${err.message}`);
       }
     }
 
