@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Clock, Download, Plus, Fingerprint, Monitor, FileText } from 'lucide-react';
+import { Clock, Download, Plus, Fingerprint, Monitor, FileText, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAttendance, Attendance } from '@/lib/api/attendance';
 import { getEmployees, Employee as EmployeeAPI } from '@/lib/api/employees';
@@ -68,6 +68,7 @@ export function AttendanceManagement() {
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [leaves, setLeaves] = useState<any[]>([]);
+  const [syncingHolidays, setSyncingHolidays] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -236,6 +237,49 @@ export function AttendanceManagement() {
     a.download = `attendance_${filterDate || 'all'}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
+  };
+
+  const syncHolidays = async () => {
+    setSyncingHolidays(true);
+    try {
+      const currentYear = new Date().getFullYear();
+      const nextYear = currentYear + 1;
+
+      toast.info('Syncing holidays... This may take a moment.');
+
+      const results = [];
+
+      // Sync current year and next year
+      for (const year of [currentYear, nextYear]) {
+        const response = await fetch('/api/admin/holidays/sync', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            year,
+            source: 'github',
+            clearExisting: false,
+            filterTypes: ['POYA', 'MERCANTILE'], // Only Poya days and Mercantile holidays
+          }),
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          results.push(`${year}: ${data.created} created, ${data.skipped} skipped`);
+        } else {
+          throw new Error(data.error || `Failed to sync ${year}`);
+        }
+      }
+
+      toast.success(`Holidays synced successfully!\n${results.join('\n')}`);
+    } catch (error: any) {
+      console.error('Error syncing holidays:', error);
+      toast.error(error.message || 'Failed to sync holidays');
+    } finally {
+      setSyncingHolidays(false);
+    }
   };
 
   const generatePDFReport = () => {
@@ -428,42 +472,87 @@ export function AttendanceManagement() {
         </TabsList>
 
         <TabsContent value="records" className="mt-6">
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle>Generate Finance Report</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col sm:flex-row gap-4 items-end">
-                <div className="flex-1">
-                  <Label htmlFor="startDate">Start Date</Label>
-                  <Input
-                    id="startDate"
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => setStartDate(e.target.value)}
-                    className="mt-2"
-                  />
+          <div className="grid gap-6 md:grid-cols-2 mb-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Generate Finance Report</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="startDate">Start Date</Label>
+                      <Input
+                        id="startDate"
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="mt-2"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="endDate">End Date</Label>
+                      <Input
+                        id="endDate"
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="mt-2"
+                      />
+                    </div>
+                  </div>
+                  <Button onClick={generatePDFReport} className="w-full">
+                    <FileText className="h-4 w-4 mr-2" />
+                    Generate PDF Report
+                  </Button>
+                  <p className="text-xs text-gray-500">
+                    Generate a comprehensive attendance report for the Finance department including worked days, leave days, and late minutes.
+                  </p>
                 </div>
-                <div className="flex-1">
-                  <Label htmlFor="endDate">End Date</Label>
-                  <Input
-                    id="endDate"
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    className="mt-2"
-                  />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Sync Holidays</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col gap-4">
+                  <div className="space-y-2">
+                    <p className="text-sm text-gray-600">
+                      Sync Poya days and Mercantile holidays (bank holidays) for the current and next year.
+                    </p>
+                    <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                      <p className="text-xs text-blue-700">
+                        <strong>Automatic Sync:</strong> Holidays are automatically synced on the 1st of every month via cron job.
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    onClick={syncHolidays}
+                    disabled={syncingHolidays}
+                    className="w-full"
+                    variant="outline"
+                  >
+                    {syncingHolidays ? (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                        Syncing...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="h-4 w-4 mr-2" />
+                        Manual Sync Now
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-xs text-gray-500">
+                    Click to manually sync holidays from the Sri Lanka Holidays database.
+                  </p>
                 </div>
-                <Button onClick={generatePDFReport} className="w-full sm:w-auto">
-                  <FileText className="h-4 w-4 mr-2" />
-                  Generate PDF Report
-                </Button>
-              </div>
-              <p className="text-xs text-gray-500 mt-2">
-                Generate a comprehensive attendance report for the Finance department including worked days, leave days, and late minutes.
-              </p>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
 
           <Card>
             <CardHeader>
