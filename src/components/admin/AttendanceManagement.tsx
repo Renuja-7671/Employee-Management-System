@@ -62,12 +62,14 @@ export function AttendanceManagement() {
     checkIn: '08:30',
     checkOut: '17:00',
   });
-  const [filterDate, setFilterDate] = useState(
+  const [startDate, setStartDate] = useState(
     new Date().toISOString().split('T')[0]
   );
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [endDate, setEndDate] = useState(
+    new Date().toISOString().split('T')[0]
+  );
   const [leaves, setLeaves] = useState<any[]>([]);
+  const [publicHolidays, setPublicHolidays] = useState<any[]>([]);
   const [syncingHolidays, setSyncingHolidays] = useState(false);
 
   useEffect(() => {
@@ -76,10 +78,11 @@ export function AttendanceManagement() {
 
   const fetchData = async () => {
     try {
-      const [attendanceData, employeesData, leavesResponse] = await Promise.all([
+      const [attendanceData, employeesData, leavesResponse, holidaysResponse] = await Promise.all([
         getAttendance(),
         getEmployees(),
         fetch('/api/leaves', { cache: 'no-store' }),
+        fetch('/api/admin/holidays', { cache: 'no-store' }),
       ]);
 
       setAttendance(attendanceData);
@@ -93,6 +96,11 @@ export function AttendanceManagement() {
       if (leavesResponse.ok) {
         const leavesData = await leavesResponse.json();
         setLeaves(leavesData.leaves || []);
+      }
+
+      if (holidaysResponse.ok) {
+        const holidaysData = await holidaysResponse.json();
+        setPublicHolidays(holidaysData.holidays || []);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -197,21 +205,40 @@ export function AttendanceManagement() {
     }
   };
 
-  const filteredAttendance = filterDate
-    ? attendance.filter((a) => {
-        const attDate = new Date(a.date).toISOString().split('T')[0];
-        return attDate === filterDate;
-      })
-    : attendance;
+  // Filter attendance by date range
+  const filteredAttendance = attendance.filter((a) => {
+    if (!startDate || !endDate) return false;
+    const attDate = new Date(a.date).toISOString().split('T')[0];
+    return attDate >= startDate && attDate <= endDate;
+  });
 
-  // Filter attendance by date range for report
-  const getDateRangeAttendance = () => {
-    if (!startDate || !endDate) return [];
+  // Helper function to check if a date is a Sunday
+  const isSunday = (date: Date): boolean => {
+    return date.getDay() === 0;
+  };
 
-    return attendance.filter((a) => {
-      const attDate = new Date(a.date).toISOString().split('T')[0];
-      return attDate >= startDate && attDate <= endDate;
+  // Helper function to check if a date is a public holiday
+  const isPublicHoliday = (date: Date): boolean => {
+    const dateStr = date.toISOString().split('T')[0];
+    return publicHolidays.some(holiday => {
+      const holidayDateStr = new Date(holiday.date).toISOString().split('T')[0];
+      return holidayDateStr === dateStr;
     });
+  };
+
+  // Calculate working days between two dates (excluding Sundays and public holidays)
+  const calculateWorkingDays = (start: Date, end: Date): number => {
+    let workingDays = 0;
+    const currentDate = new Date(start);
+
+    while (currentDate <= end) {
+      if (!isSunday(currentDate) && !isPublicHoliday(currentDate)) {
+        workingDays++;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return workingDays;
   };
 
   const exportToCSV = () => {
@@ -234,7 +261,7 @@ export function AttendanceManagement() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `attendance_${filterDate || 'all'}.csv`;
+    a.download = `attendance_${startDate}_to_${endDate}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
   };
@@ -288,12 +315,15 @@ export function AttendanceManagement() {
       return;
     }
 
-    const dateRangeAttendance = getDateRangeAttendance();
-
-    if (dateRangeAttendance.length === 0) {
+    if (filteredAttendance.length === 0) {
       toast.error('No attendance data found for the selected date range');
       return;
     }
+
+    // Calculate total working days in the selected period
+    const startDateObj = new Date(startDate);
+    const endDateObj = new Date(endDate);
+    const totalWorkingDays = calculateWorkingDays(startDateObj, endDateObj);
 
     // Calculate statistics per employee
     const employeeStats = new Map<string, {
@@ -305,7 +335,7 @@ export function AttendanceManagement() {
     }>();
 
     // Process attendance data
-    dateRangeAttendance.forEach(att => {
+    filteredAttendance.forEach((att: Attendance) => {
       const empId = att.employeeId;
       const employee = employees.find(e => e.id === empId);
 
@@ -327,9 +357,6 @@ export function AttendanceManagement() {
     });
 
     // Calculate approved leave days for each employee in the date range
-    const startDateObj = new Date(startDate);
-    const endDateObj = new Date(endDate);
-
     employees.forEach(emp => {
       const employeeLeaves = leaves.filter(leave =>
         leave.employeeId === emp.id &&
@@ -395,13 +422,14 @@ export function AttendanceManagement() {
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
     doc.text(`Total Employees: ${totalEmployees}`, 14, 76);
-    doc.text(`Total Worked Days: ${totalWorkedDays}`, 14, 82);
-    doc.text(`Total Approved Leave Days: ${totalLeaveDays}`, 14, 88);
+    doc.text(`Working Days in Period: ${totalWorkingDays} (excluding Sundays & holidays)`, 14, 82);
+    doc.text(`Total Worked Days: ${totalWorkedDays}`, 14, 88);
+    doc.text(`Total Approved Leave Days: ${totalLeaveDays}`, 14, 94);
 
     // Add employee details table
     doc.setFontSize(14);
     doc.setTextColor(59, 130, 246);
-    doc.text('Employee Attendance Details', 14, 98);
+    doc.text('Employee Attendance Details', 14, 104);
 
     const tableData = Array.from(employeeStats.values()).map(emp => [
       emp.employeeId,
@@ -413,7 +441,7 @@ export function AttendanceManagement() {
     ]);
 
     autoTable(doc, {
-      startY: 105,
+      startY: 111,
       head: [['EMP ID', 'Employee Name', 'Worked Days', 'Leave Days', 'Late Min', 'Status (60 min)']],
       body: tableData,
       theme: 'grid',
@@ -475,7 +503,7 @@ export function AttendanceManagement() {
           <div className="grid gap-6 md:grid-cols-2 mb-6">
             <Card>
               <CardHeader>
-                <CardTitle>Generate Finance Report</CardTitle>
+                <CardTitle>Date Range & Finance Report</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col gap-4">
@@ -501,12 +529,17 @@ export function AttendanceManagement() {
                       />
                     </div>
                   </div>
+                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-xs text-blue-700">
+                      <strong>Note:</strong> This date range applies to both attendance viewing and PDF report generation.
+                    </p>
+                  </div>
                   <Button onClick={generatePDFReport} className="w-full">
                     <FileText className="h-4 w-4 mr-2" />
                     Generate PDF Report
                   </Button>
                   <p className="text-xs text-gray-500">
-                    Generate a comprehensive attendance report for the Finance department including worked days, leave days, and late minutes.
+                    Generate a comprehensive finance report with working days (excluding Sundays & holidays), attendance, leave days, and late minutes.
                   </p>
                 </div>
               </CardContent>
@@ -556,9 +589,33 @@ export function AttendanceManagement() {
 
           <Card>
             <CardHeader>
-              <div className="flex justify-between items-center">
-                <CardTitle>Attendance Records</CardTitle>
-                <div className="flex gap-2">
+              <CardTitle>Attendance Records</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <div className="flex-1">
+                  <Label htmlFor="viewStartDate" className="text-sm mb-2 block">Date Range</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      id="viewStartDate"
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      placeholder="Start Date"
+                    />
+                    <Input
+                      id="viewEndDate"
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      placeholder="End Date"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Select date range to view and export attendance records
+                  </p>
+                </div>
+                <div className="flex gap-2 items-end">
                   <Button variant="outline" onClick={exportToCSV}>
                     <Download className="h-4 w-4 mr-2" />
                     Export CSV
@@ -645,18 +702,6 @@ export function AttendanceManagement() {
               </Dialog>
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="mb-4">
-            <Label htmlFor="filterDate">Filter by Date</Label>
-            <Input
-              id="filterDate"
-              type="date"
-              value={filterDate}
-              onChange={(e) => setFilterDate(e.target.value)}
-              className="max-w-xs mt-2"
-            />
-          </div>
 
           <div className="rounded-md border">
             <Table>
@@ -677,7 +722,7 @@ export function AttendanceManagement() {
                       colSpan={6}
                       className="text-center text-gray-500 py-8"
                     >
-                      No attendance records found for selected date
+                      No attendance records found for selected date range
                     </TableCell>
                   </TableRow>
                 ) : (
