@@ -75,6 +75,28 @@ export function MyAttendance({ user }: MyAttendanceProps) {
     return `${h}h ${m}m`;
   };
 
+  const calculateLateMinutes = (checkIn: string | Date | null | undefined): number => {
+    if (!checkIn) return 0;
+
+    try {
+      const checkInDate = typeof checkIn === 'string' ? new Date(checkIn) : checkIn;
+      const checkInHour = checkInDate.getHours();
+      const checkInMinute = checkInDate.getMinutes();
+
+      // Company start time is 8:30 AM
+      const startTimeMinutes = 8 * 60 + 30; // 510 minutes (8:30 AM)
+      const checkInTimeMinutes = checkInHour * 60 + checkInMinute;
+
+      // Calculate late minutes
+      const lateMinutes = checkInTimeMinutes - startTimeMinutes;
+
+      // Return 0 if not late, otherwise return the late minutes
+      return lateMinutes > 0 ? lateMinutes : 0;
+    } catch (error) {
+      return 0;
+    }
+  };
+
   const filteredAttendance = filterMonth
     ? attendance.filter(a => {
         const attDate = new Date(a.date);
@@ -90,6 +112,7 @@ export function MyAttendance({ user }: MyAttendanceProps) {
     avgHours: filteredAttendance.length > 0
       ? filteredAttendance.reduce((sum, a) => sum + calculateHours(a.checkIn, a.checkOut), 0) / filteredAttendance.length
       : 0,
+    totalLateMinutes: filteredAttendance.reduce((sum, a) => sum + calculateLateMinutes(a.checkIn), 0),
   };
 
   // Prepare chart data (last 7 days)
@@ -102,11 +125,12 @@ export function MyAttendance({ user }: MyAttendanceProps) {
     }));
 
   const exportToCSV = () => {
-    const headers = ['Date', 'Check In', 'Check Out', 'Total Hours'];
+    const headers = ['Date', 'Check In', 'Check Out', 'Late Minutes', 'Total Hours'];
     const rows = filteredAttendance.map(att => [
       new Date(att.date).toLocaleDateString(),
       formatTime(att.checkIn),
       formatTime(att.checkOut),
+      `${calculateLateMinutes(att.checkIn)} min`,
       formatHours(calculateHours(att.checkIn, att.checkOut)),
     ]);
 
@@ -131,7 +155,7 @@ export function MyAttendance({ user }: MyAttendanceProps) {
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm">Total Days</CardTitle>
@@ -162,6 +186,23 @@ export function MyAttendance({ user }: MyAttendanceProps) {
           <CardContent>
             <div className="text-2xl">{formatHours(stats.avgHours)}</div>
             <p className="text-xs text-muted-foreground">This month</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm">Late Minutes</CardTitle>
+            <Clock className="h-4 w-4 text-red-500" />
+          </CardHeader>
+          <CardContent>
+            <div className={`text-2xl ${stats.totalLateMinutes > 60 ? 'text-red-600' : ''}`}>
+              {stats.totalLateMinutes} min
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {stats.totalLateMinutes > 60
+                ? `Exceeded by ${stats.totalLateMinutes - 60} min`
+                : `${60 - stats.totalLateMinutes} min remaining`}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -222,35 +263,44 @@ export function MyAttendance({ user }: MyAttendanceProps) {
                 <TableHead>Date</TableHead>
                 <TableHead>Check In</TableHead>
                 <TableHead>Check Out</TableHead>
+                <TableHead>Late Minutes</TableHead>
                 <TableHead>Total Hours</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredAttendance.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center text-gray-500">
+                  <TableCell colSpan={5} className="text-center text-gray-500">
                     No attendance records found for selected month
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredAttendance.map((att) => (
-                  <TableRow key={att.id}>
-                    <TableCell>{new Date(att.date).toLocaleDateString()}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatTime(att.checkIn)}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        {formatTime(att.checkOut)}
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatHours(calculateHours(att.checkIn, att.checkOut))}</TableCell>
-                  </TableRow>
-                ))
+                filteredAttendance.map((att) => {
+                  const lateMinutes = calculateLateMinutes(att.checkIn);
+                  return (
+                    <TableRow key={att.id}>
+                      <TableCell>{new Date(att.date).toLocaleDateString()}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {formatTime(att.checkIn)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <Clock className="h-3 w-3" />
+                          {formatTime(att.checkOut)}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <span className={lateMinutes > 0 ? 'text-red-600 font-medium' : 'text-gray-500'}>
+                          {lateMinutes} min
+                        </span>
+                      </TableCell>
+                      <TableCell>{formatHours(calculateHours(att.checkIn, att.checkOut))}</TableCell>
+                    </TableRow>
+                  );
+                })
               )}
             </TableBody>
           </Table>
