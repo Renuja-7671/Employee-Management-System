@@ -433,16 +433,16 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
 
       {/* Apply Leave Form */}
       <Card>
-        <CardHeader>
-          <CardTitle>Apply for Leave</CardTitle>
-          <CardDescription>
+        <CardHeader className="px-4 sm:px-6 pt-4 sm:pt-6">
+          <CardTitle className="text-sm sm:text-base">Apply for Leave</CardTitle>
+          <CardDescription className="text-xs sm:text-sm">
             Fill in the details below to submit your leave request
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <CardContent className="px-4 sm:px-6">
+          <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="leaveType">Leave Type *</Label>
+              <Label htmlFor="leaveType" className="text-xs sm:text-sm">Leave Type *</Label>
               <Select
                 value={formData.leaveType}
                 onValueChange={(value) => {
@@ -572,14 +572,14 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
             )}
 
             {formData.startDate && formData.numberOfDays > 0 && generateCalendarPreview.length > 0 && (
-              <div className="p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
-                <div className="flex items-center gap-2 mb-3">
-                  <CalendarDays className="h-5 w-5 text-blue-600" />
-                  <span className="font-semibold text-gray-800">Leave Calendar Preview</span>
+              <div className="p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
+                <div className="flex items-center gap-2 mb-2 sm:mb-3">
+                  <CalendarDays className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                  <span className="text-xs sm:text-sm font-semibold text-gray-800">Leave Calendar Preview</span>
                 </div>
                 <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm text-gray-700 mb-2">
-                    <Calendar className="h-4 w-4 text-blue-600" />
+                  <div className="flex items-center gap-2 text-xs sm:text-sm text-gray-700 mb-2">
+                    <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
                     <span>
                       Total: <span className="font-semibold">
                         {formData.numberOfDays === 0.5
@@ -589,27 +589,27 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
                       </span>
                     </span>
                   </div>
-                  <div className="grid grid-cols-7 gap-2">
+                  <div className="grid grid-cols-4 sm:grid-cols-7 gap-1 sm:gap-2">
                     {generateCalendarPreview.map((date, index) => (
                       <div
                         key={index}
-                        className={`text-center p-2 bg-white rounded-lg border-2 shadow-sm ${
+                        className={`text-center p-1 sm:p-2 bg-white rounded-lg border-2 shadow-sm ${
                           formData.numberOfDays === 0.5 ? 'border-green-400' : 'border-blue-400'
                         }`}
                       >
-                        <div className="text-xs text-gray-500 uppercase">
+                        <div className="text-[10px] sm:text-xs text-gray-500 uppercase">
                           {date.toLocaleDateString('en-US', { weekday: 'short' })}
                         </div>
-                        <div className={`text-sm font-bold ${
+                        <div className={`text-xs sm:text-sm font-bold ${
                           formData.numberOfDays === 0.5 ? 'text-green-600' : 'text-blue-600'
                         }`}>
                           {date.getDate()}
                         </div>
-                        <div className="text-xs text-gray-600">
+                        <div className="text-[10px] sm:text-xs text-gray-600">
                           {date.toLocaleDateString('en-US', { month: 'short' })}
                         </div>
                         {formData.numberOfDays === 0.5 && (
-                          <div className="text-xs text-green-600 font-semibold mt-1">
+                          <div className="text-[10px] sm:text-xs text-green-600 font-semibold mt-1">
                             Half
                           </div>
                         )}
@@ -617,12 +617,12 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
                     ))}
                   </div>
                   {formData.endDate && formData.numberOfDays > 1 && (
-                    <div className="mt-2 text-xs text-gray-600 text-center">
+                    <div className="mt-2 text-[10px] sm:text-xs text-gray-600 text-center">
                       From <span className="font-semibold">{new Date(formData.startDate).toLocaleDateString()}</span> to <span className="font-semibold">{new Date(formData.endDate).toLocaleDateString()}</span>
                     </div>
                   )}
                   {formData.numberOfDays === 0.5 && (
-                    <div className="mt-2 text-xs text-green-600 text-center font-semibold">
+                    <div className="mt-2 text-[10px] sm:text-xs text-green-600 text-center font-semibold">
                       Half day leave on {new Date(formData.startDate).toLocaleDateString()}
                     </div>
                   )}
@@ -631,7 +631,7 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="reason">Reason</Label>
+              <Label htmlFor="reason" className="text-xs sm:text-sm">Reason</Label>
               <Textarea
                 id="reason"
                 placeholder="Brief reason for leave..."
@@ -643,7 +643,7 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
 
             {formData.leaveType === 'medical' && formData.numberOfDays > 1 && (
               <div className="space-y-2">
-                <Label htmlFor="medicalCert">Medical Certificate *</Label>
+                <Label htmlFor="medicalCert" className="text-xs sm:text-sm">Medical Certificate *</Label>
                 <div className="flex items-center gap-2">
                   <Input
                     id="medicalCert"
@@ -651,30 +651,31 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
                     accept=".pdf,.jpg,.jpeg,.png"
                     onChange={handleFileChange}
                     required
+                    className="text-xs sm:text-sm"
                   />
-                  <Upload className="h-4 w-4 text-gray-400" />
+                  <Upload className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
                 </div>
                 {medicalCertFile && (
-                  <p className="text-xs text-green-600">
+                  <p className="text-[10px] sm:text-xs text-green-600">
                     File selected: {medicalCertFile.name}
                   </p>
                 )}
-                <p className="text-xs text-orange-600">
+                <p className="text-[10px] sm:text-xs text-orange-600">
                   Medical certificate is required for leave exceeding 1 day
                 </p>
               </div>
             )}
 
             {formData.leaveType === 'medical' && formData.numberOfDays <= 1 && (
-              <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                <p className="text-xs text-green-700">
+              <div className="p-2 sm:p-3 bg-green-50 rounded-lg border border-green-200">
+                <p className="text-[10px] sm:text-xs text-green-700">
                   ✓ No medical certificate required for {formData.numberOfDays === 0.5 ? 'half day' : '1 day'} medical leave
                 </p>
               </div>
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="coverEmployee">Cover Employee *</Label>
+              <Label htmlFor="coverEmployee" className="text-xs sm:text-sm">Cover Employee *</Label>
               <Select
                 value={formData.coverEmployeeId}
                 onValueChange={(value) => setFormData({ ...formData, coverEmployeeId: value })}
@@ -702,9 +703,9 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
               </p>
             </div>
 
-            <div className="flex items-start gap-2 p-3 bg-orange-50 rounded-lg">
-              <AlertCircle className="h-4 w-4 text-orange-600 mt-0.5" />
-              <div className="text-xs text-gray-700">
+            <div className="flex items-start gap-2 p-2 sm:p-3 bg-orange-50 rounded-lg">
+              <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+              <div className="text-[10px] sm:text-xs text-gray-700 min-w-0">
                 <p className="font-semibold">Important: Your leave request will go through two approval stages:</p>
                 <ol className="list-decimal list-inside mt-1 space-y-1">
                   <li>Cover employee must approve within 12 hours</li>
@@ -713,7 +714,7 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
               </div>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading || uploading}>
+            <Button type="submit" className="w-full text-xs sm:text-sm" disabled={loading || uploading}>
               {loading ? 'Submitting...' : uploading ? 'Uploading...' : 'Submit Leave Request'}
             </Button>
           </form>

@@ -179,57 +179,30 @@ async function processAttendanceRecord(
       },
     });
     console.log(`[ATTENDANCE] Created check-in for ${employeeId} at ${timestamp}`);
-  } else if (!existing.checkOut) {
-    // Has check-in but no check-out - this could be check-out
-    // Only count as check-out if it's at least 4 hours after check-in
-    const hoursSinceCheckIn = existing.checkIn 
-      ? (timestamp.getTime() - existing.checkIn.getTime()) / (1000 * 60 * 60)
-      : 0;
-
-    if (hoursSinceCheckIn >= 4) {
-      // Calculate work hours
-      const workHours = existing.checkIn
-        ? (timestamp.getTime() - existing.checkIn.getTime()) / (1000 * 60 * 60)
-        : null;
-
-      // Determine final status
-      let status = existing.status;
-      if (workHours && workHours < 4) {
-        status = 'HALF_DAY';
-      } else if (workHours && workHours >= 8) {
-        status = isLate ? 'LATE' : 'PRESENT';
-      }
-
-      await prisma.attendance.update({
-        where: { id: existing.id },
-        data: {
-          checkOut: timestamp,
-          workHours: workHours ? parseFloat(workHours.toFixed(2)) : null,
-          status,
-        },
-      });
-      console.log(`[ATTENDANCE] Updated check-out for ${employeeId} at ${timestamp}`);
-    } else {
-      // Too soon - might be a duplicate scan, ignore
-      console.log(`[ATTENDANCE] Ignored duplicate scan for ${employeeId} (${hoursSinceCheckIn.toFixed(1)}h since check-in)`);
-    }
   } else {
-    // Already has both check-in and check-out
-    // Could update check-out if this is later
-    if (timestamp > existing.checkOut) {
-      const workHours = existing.checkIn
-        ? (timestamp.getTime() - existing.checkIn.getTime()) / (1000 * 60 * 60)
-        : null;
+    // Any subsequent scan after the first scan is treated as checkout
+    // Always update checkout to the latest scan time
+    const workHours = existing.checkIn
+      ? (timestamp.getTime() - existing.checkIn.getTime()) / (1000 * 60 * 60)
+      : null;
 
-      await prisma.attendance.update({
-        where: { id: existing.id },
-        data: {
-          checkOut: timestamp,
-          workHours: workHours ? parseFloat(workHours.toFixed(2)) : null,
-        },
-      });
-      console.log(`[ATTENDANCE] Extended check-out for ${employeeId} to ${timestamp}`);
+    // Determine final status based on work hours
+    let status = existing.status;
+    if (workHours && workHours < 4) {
+      status = 'HALF_DAY';
+    } else if (workHours && workHours >= 8) {
+      status = isLate ? 'LATE' : 'PRESENT';
     }
+
+    await prisma.attendance.update({
+      where: { id: existing.id },
+      data: {
+        checkOut: timestamp,
+        workHours: workHours ? parseFloat(workHours.toFixed(2)) : null,
+        status,
+      },
+    });
+    console.log(`[ATTENDANCE] Updated check-out for ${employeeId} at ${timestamp} (work hours: ${workHours?.toFixed(2)}h)`);
   }
 }
 
