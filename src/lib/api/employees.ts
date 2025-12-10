@@ -8,6 +8,7 @@ export interface Employee {
   firstName: string;
   lastName: string;
   nameWithInitials?: string | null;
+  nic?: string | null;
   department: string;
   position: string;
   phoneNumber?: string | null;
@@ -25,6 +26,8 @@ export interface Employee {
 export interface CreateEmployeeData {
   firstName: string;
   lastName: string;
+  nameWithInitials?: string | null;
+  nic?: string | null;
   email: string;
   password: string;
   employeeId: string;
@@ -34,6 +37,7 @@ export interface CreateEmployeeData {
   birthday?: string | null;
   address?: string | null;
   emergencyContact?: string | null;
+  profilePicture?: string | null;
 }
 
 export async function getEmployees(): Promise<Employee[]> {
@@ -179,6 +183,7 @@ export async function updateEmployeeProfile(
     department?: string;
     position?: string;
     emergencyContact?: string;
+    nic?: string;
   }
 ): Promise<{ success: boolean; employee?: Employee; error?: string }> {
   try {

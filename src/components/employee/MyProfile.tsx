@@ -35,6 +35,7 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
     address: '',
     birthday: '',
     emergencyContact: '',
+    nic: '',
   });
   const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
@@ -53,6 +54,7 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
         address: initialProfile.address || '',
         birthday: initialProfile.birthday ? new Date(initialProfile.birthday).toISOString().split('T')[0] : '',
         emergencyContact: initialProfile.emergencyContact || '',
+        nic: initialProfile.nic || '',
       });
     }
   }, [initialProfile]);
@@ -176,6 +178,7 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
       address: profile.address || '',
       birthday: profile.birthday ? new Date(profile.birthday).toISOString().split('T')[0] : '',
       emergencyContact: profile.emergencyContact || '',
+      nic: profile.nic || '',
     });
     setEditMode(false);
   };
@@ -347,6 +350,14 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-gray-400" />
                     <span>{profile.email}</span>
+                  </div>
+                </div>
+                <Separator />
+                <div className="space-y-1">
+                  <Label className="text-gray-500">NIC (National Identity Card)</Label>
+                  <div className="flex items-center gap-2">
+                    <Shield className="h-4 w-4 text-gray-400" />
+                    <span>{profile.nic || 'Not set'}</span>
                   </div>
                 </div>
                 <Separator />

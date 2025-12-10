@@ -63,6 +63,7 @@ export function EmployeeManagement() {
   const [formData, setFormData] = useState({
     name: '',
     nameWithInitials: '',
+    nic: '',
     email: '',
     password: '',
     employeeId: '',
@@ -183,6 +184,7 @@ export function EmployeeManagement() {
         firstName,
         lastName,
         nameWithInitials: formData.nameWithInitials || null,
+        nic: formData.nic || null,
         email: formData.email,
         password: formData.password,
         employeeId: formData.employeeId,
@@ -203,6 +205,7 @@ export function EmployeeManagement() {
         setFormData({
           name: '',
           nameWithInitials: '',
+          nic: '',
           email: '',
           password: '',
           employeeId: '',
@@ -422,6 +425,23 @@ export function EmployeeManagement() {
                         />
                       </div>
                       <div className="space-y-2">
+                        <Label htmlFor="nic">
+                          NIC (National Identity Card)
+                        </Label>
+                        <Input
+                          id="nic"
+                          placeholder="e.g., 199512345678 or 951234567V"
+                          value={formData.nic}
+                          onChange={(e) =>
+                            setFormData({ ...formData, nic: e.target.value })
+                          }
+                          maxLength={12}
+                        />
+                        <p className="text-xs text-gray-500">
+                          New NIC format (12 digits) or Old NIC format (9 digits + V/X)
+                        </p>
+                      </div>
+                      <div className="space-y-2">
                         <Label htmlFor="email">
                           Email <span className="text-red-500">*</span>
                         </Label>
@@ -569,6 +589,7 @@ export function EmployeeManagement() {
                 <TableRow>
                   <TableHead>Employee ID</TableHead>
                   <TableHead>Name</TableHead>
+                  <TableHead>NIC</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Joined Date</TableHead>
                   <TableHead>Status</TableHead>
@@ -579,7 +600,7 @@ export function EmployeeManagement() {
                 {filteredEmployees.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={6}
+                      colSpan={7}
                       className="text-center text-gray-500 py-8"
                     >
                       {showInactive
@@ -594,6 +615,9 @@ export function EmployeeManagement() {
                         {employee.employeeId}
                       </TableCell>
                       <TableCell>{employee.name}</TableCell>
+                      <TableCell className="text-gray-600">
+                        {employee.nic || '-'}
+                      </TableCell>
                       <TableCell>{employee.email}</TableCell>
                       <TableCell>
                         {new Date(employee.dateOfJoining).toLocaleDateString()}

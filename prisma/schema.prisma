@@ -17,6 +17,7 @@ model User {
   firstName        String
   lastName         String
   nameWithInitials String?
+  nic              String?   @unique
   department       Department
   position         String
   phoneNumber      String?
@@ -42,6 +43,7 @@ model User {
 
   @@index([email])
   @@index([employeeId])
+  @@index([nic])
   @@index([department])
   @@index([birthday])
 }
