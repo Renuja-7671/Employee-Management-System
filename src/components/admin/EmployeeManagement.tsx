@@ -31,7 +31,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { UserPlus, Download, UserX, UserCheck } from 'lucide-react';
+import { UserPlus, Download, UserX, UserCheck, Edit2, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { getEmployees, createEmployee, updateEmployee, Employee as EmployeeAPI } from '@/lib/api/employees';
 import {
@@ -56,10 +56,13 @@ export function EmployeeManagement() {
   const [submitting, setSubmitting] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [nextEmployeeId, setNextEmployeeId] = useState('');
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [profilePicturePreview, setProfilePicturePreview] = useState<string>('');
+  const [editProfilePicture, setEditProfilePicture] = useState<File | null>(null);
+  const [editProfilePicturePreview, setEditProfilePicturePreview] = useState<string>('');
   const [formData, setFormData] = useState({
     name: '',
     nameWithInitials: '',
@@ -281,6 +284,83 @@ export function EmployeeManagement() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEditProfilePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file');
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      setEditProfilePicture(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditProfilePicturePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUpdateProfilePicture = async () => {
+    if (!selectedEmployee || !editProfilePicture) {
+      toast.error('Please select a profile picture');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Upload profile picture
+      const formData = new FormData();
+      formData.append('file', editProfilePicture);
+      formData.append('userId', selectedEmployee.id);
+
+      const uploadResponse = await fetch('/api/upload/profile-picture', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload profile picture');
+      }
+
+      const uploadData = await uploadResponse.json();
+
+      // Update employee with new profile picture path
+      const result = await updateEmployee(selectedEmployee.id, {
+        profilePicture: uploadData.filePath,
+      });
+
+      if (result.success) {
+        toast.success('Profile picture updated successfully');
+        setShowEditDialog(false);
+        setEditProfilePicture(null);
+        setEditProfilePicturePreview('');
+        setSelectedEmployee(null);
+        fetchEmployees();
+      } else {
+        toast.error(result.error || 'Failed to update profile picture');
+      }
+    } catch (error: any) {
+      console.error('Error updating profile picture:', error);
+      toast.error(error.message || 'Failed to update profile picture');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleOpenEditDialog = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setEditProfilePicture(null);
+    setEditProfilePicturePreview('');
+    setShowEditDialog(true);
   };
 
   const exportToCSV = () => {
@@ -634,30 +714,41 @@ export function EmployeeManagement() {
                         )}
                       </TableCell>
                       <TableCell>
-                        {employee.isActive ? (
+                        <div className="flex gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => {
-                              setSelectedEmployee(employee);
-                              setShowDeactivateDialog(true);
-                            }}
+                            onClick={() => handleOpenEditDialog(employee)}
                             disabled={submitting}
                           >
-                            <UserX className="h-4 w-4 mr-1" />
-                            Deactivate
+                            <Edit2 className="h-4 w-4 mr-1" />
+                            Edit
                           </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleReactivateEmployee(employee)}
-                            disabled={submitting}
-                          >
-                            <UserCheck className="h-4 w-4 mr-1" />
-                            Reactivate
-                          </Button>
-                        )}
+                          {employee.isActive ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedEmployee(employee);
+                                setShowDeactivateDialog(true);
+                              }}
+                              disabled={submitting}
+                            >
+                              <UserX className="h-4 w-4 mr-1" />
+                              Deactivate
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleReactivateEmployee(employee)}
+                              disabled={submitting}
+                            >
+                              <UserCheck className="h-4 w-4 mr-1" />
+                              Reactivate
+                            </Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -693,6 +784,106 @@ export function EmployeeManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Employee Profile Picture Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Employee Profile Picture</DialogTitle>
+            <DialogDescription>
+              Update the profile picture for {selectedEmployee?.name}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Current Profile Picture */}
+            <div className="space-y-2">
+              <Label>Current Profile Picture</Label>
+              <div className="flex justify-center">
+                {selectedEmployee?.profilePicture ? (
+                  <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-gray-200">
+                    <img
+                      src={`/uploads/profile-pictures/${selectedEmployee.profilePicture}`}
+                      alt={selectedEmployee.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(selectedEmployee.name)}&size=128&background=3b82f6&color=fff`;
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className="w-32 h-32 rounded-full bg-blue-500 flex items-center justify-center text-white text-3xl font-bold">
+                    {selectedEmployee?.name?.split(' ').map(n => n[0]).join('').toUpperCase() || '?'}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* New Profile Picture Upload */}
+            <div className="space-y-2">
+              <Label htmlFor="editProfilePicture">New Profile Picture</Label>
+              <Input
+                id="editProfilePicture"
+                type="file"
+                accept="image/*"
+                onChange={handleEditProfilePictureChange}
+              />
+              <p className="text-xs text-gray-500">
+                Max file size: 5MB. Supported formats: JPG, PNG, GIF
+              </p>
+            </div>
+
+            {/* Preview */}
+            {editProfilePicturePreview && (
+              <div className="space-y-2">
+                <Label>Preview</Label>
+                <div className="flex justify-center">
+                  <div className="relative w-32 h-32 rounded-full overflow-hidden border-2 border-blue-500">
+                    <img
+                      src={editProfilePicturePreview}
+                      alt="Preview"
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowEditDialog(false);
+                  setEditProfilePicture(null);
+                  setEditProfilePicturePreview('');
+                  setSelectedEmployee(null);
+                }}
+                disabled={submitting}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleUpdateProfilePicture}
+                disabled={submitting || !editProfilePicture}
+              >
+                {submitting ? (
+                  <>
+                    <Upload className="h-4 w-4 mr-2 animate-spin" />
+                    Uploading...
+                  </>
+                ) : (
+                  <>
+                    <Upload className="h-4 w-4 mr-2" />
+                    Update Picture
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
