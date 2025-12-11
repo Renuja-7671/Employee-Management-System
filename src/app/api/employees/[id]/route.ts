@@ -59,6 +59,7 @@ export async function PUT(
     if (body.nameWithInitials !== undefined) updateData.nameWithInitials = body.nameWithInitials;
     if (body.email !== undefined) updateData.email = body.email;
     if (body.phoneNumber !== undefined) updateData.phoneNumber = body.phoneNumber;
+    if (body.nic !== undefined) updateData.nic = body.nic;
     if (body.position !== undefined) updateData.position = body.position;
     if (body.department !== undefined) updateData.department = body.department;
     if (body.birthday !== undefined) updateData.birthday = body.birthday ? new Date(body.birthday) : null;
@@ -78,6 +79,7 @@ export async function PUT(
         firstName: true,
         lastName: true,
         nameWithInitials: true,
+        nic: true,
         department: true,
         position: true,
         phoneNumber: true,
