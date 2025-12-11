@@ -175,7 +175,7 @@ export default function DutyReassignmentPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Covering Duty Reassignment</h1>
         <p className="text-muted-foreground mt-2">
-          Manage cover employee reassignments when conflicts occur
+          Manage cover employee reassignments when conflicts occur (HR Head & Managing Director)
         </p>
       </div>
 

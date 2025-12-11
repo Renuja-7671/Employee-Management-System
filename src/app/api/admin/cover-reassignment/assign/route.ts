@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 /**
  * Assign new cover employee for a duty reassignment
- * Only HR Head can perform this action
+ * Only HR Head and Managing Director can perform this action
  */
 export async function POST(request: NextRequest) {
   try {
@@ -18,8 +18,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify HR Head authorization
-    const hrHead = await prisma.user.findUnique({
+    // Verify HR Head or Managing Director authorization
+    const admin = await prisma.user.findUnique({
       where: { id: hrHeadId },
       select: {
         id: true,
@@ -30,9 +30,10 @@ export async function POST(request: NextRequest) {
       },
     } as any);
 
-    if (!hrHead || hrHead.role !== 'ADMIN' || hrHead.adminType !== 'HR_HEAD') {
+    if (!admin || admin.role !== 'ADMIN' ||
+        (admin.adminType !== 'HR_HEAD' && admin.adminType !== 'MANAGING_DIRECTOR')) {
       return NextResponse.json(
-        { error: 'Unauthorized: Only HR Head can reassign cover duties' },
+        { error: 'Unauthorized: Only HR Head or Managing Director can reassign cover duties' },
         { status: 403 }
       );
     }
@@ -189,7 +190,7 @@ export async function POST(request: NextRequest) {
           userId: managingDirector.id,
           type: 'SYSTEM_ALERT',
           title: '✅ Cover Duty Reassigned',
-          message: `${hrHead.firstName} ${hrHead.lastName} assigned ${newCoverEmployee.firstName} ${newCoverEmployee.lastName} to cover for ${originalLeave.employee.firstName} ${originalLeave.employee.lastName}'s leave (${new Date(originalLeave.startDate).toLocaleDateString()} - ${new Date(originalLeave.endDate).toLocaleDateString()}).`,
+          message: `${admin.firstName} ${admin.lastName} assigned ${newCoverEmployee.firstName} ${newCoverEmployee.lastName} to cover for ${originalLeave.employee.firstName} ${originalLeave.employee.lastName}'s leave (${new Date(originalLeave.startDate).toLocaleDateString()} - ${new Date(originalLeave.endDate).toLocaleDateString()}).`,
           senderId: hrHeadId,
           relatedId: originalLeave.id,
         },
@@ -212,7 +213,7 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * Get all pending reassignments for HR Head
+ * Get all pending reassignments for HR Head or Managing Director
  */
 export async function GET(request: NextRequest) {
   try {
@@ -221,13 +222,13 @@ export async function GET(request: NextRequest) {
 
     if (!hrHeadId) {
       return NextResponse.json(
-        { error: 'HR Head ID is required' },
+        { error: 'Admin ID is required' },
         { status: 400 }
       );
     }
 
-    // Verify HR Head authorization
-    const hrHead = await prisma.user.findUnique({
+    // Verify HR Head or Managing Director authorization
+    const admin = await prisma.user.findUnique({
       where: { id: hrHeadId },
       select: {
         role: true,
@@ -235,9 +236,10 @@ export async function GET(request: NextRequest) {
       },
     } as any);
 
-    if (!hrHead || hrHead.role !== 'ADMIN' || hrHead.adminType !== 'HR_HEAD') {
+    if (!admin || admin.role !== 'ADMIN' ||
+        (admin.adminType !== 'HR_HEAD' && admin.adminType !== 'MANAGING_DIRECTOR')) {
       return NextResponse.json(
-        { error: 'Unauthorized: Only HR Head can view reassignments' },
+        { error: 'Unauthorized: Only HR Head or Managing Director can view reassignments' },
         { status: 403 }
       );
     }
