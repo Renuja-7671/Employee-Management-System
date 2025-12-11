@@ -39,9 +39,11 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
     isHalfDay: false,
   });
   const [medicalCertFile, setMedicalCertFile] = useState<File | null>(null);
+  const [publicHolidays, setPublicHolidays] = useState<Date[]>([]);
 
   useEffect(() => {
     fetchData();
+    fetchHolidays();
   }, []);
 
   const fetchData = async () => {
@@ -58,6 +60,23 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Error loading data');
+    }
+  };
+
+  const fetchHolidays = async () => {
+    try {
+      const currentYear = new Date().getFullYear();
+      const response = await fetch(`/api/holidays?year=${currentYear}`, {
+        cache: 'no-store',
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const holidayDates = data.holidays.map((h: any) => new Date(h.date));
+        setPublicHolidays(holidayDates);
+      }
+    } catch (error) {
+      console.error('Error fetching holidays:', error);
     }
   };
 
@@ -233,27 +252,53 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
     }));
   };
 
-  // Generate calendar preview
+  // Generate calendar preview (excluding Sundays and company holidays)
   const generateCalendarPreview = useMemo(() => {
     if (!formData.startDate || !formData.numberOfDays) return [];
+
+    // Helper function to check if a date is a Sunday
+    const isSunday = (date: Date): boolean => {
+      return date.getDay() === 0;
+    };
+
+    // Helper function to check if a date is a company holiday
+    const isCompanyHoliday = (date: Date): boolean => {
+      return publicHolidays.some(holiday => {
+        const holidayStr = holiday.toISOString().split('T')[0];
+        const dateStr = date.toISOString().split('T')[0];
+        return holidayStr === dateStr;
+      });
+    };
 
     const dates: Date[] = [];
     const start = new Date(formData.startDate);
 
-    // For 0.5 or 1 day, only show the start date
+    // For 0.5 or 1 day, only show the start date if it's a working day
     if (formData.numberOfDays <= 1) {
-      dates.push(new Date(start));
+      const startDate = new Date(start);
+      if (!isSunday(startDate) && !isCompanyHoliday(startDate)) {
+        dates.push(startDate);
+      }
     } else {
-      // For multiple days
-      for (let i = 0; i < formData.numberOfDays; i++) {
-        const date = new Date(start);
-        date.setDate(start.getDate() + i);
-        dates.push(date);
+      // For multiple days, collect all working days
+      let daysToAdd = formData.numberOfDays;
+      const currentDate = new Date(start);
+
+      while (daysToAdd > 0) {
+        const dateToCheck = new Date(currentDate);
+
+        // Only add working days (not Sundays or holidays)
+        if (!isSunday(dateToCheck) && !isCompanyHoliday(dateToCheck)) {
+          dates.push(new Date(dateToCheck));
+          daysToAdd--;
+        }
+
+        currentDate.setDate(currentDate.getDate() + 1);
       }
     }
 
     return dates;
-  }, [formData.startDate, formData.numberOfDays]);
+  }, [formData.startDate, formData.numberOfDays, publicHolidays]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
