@@ -105,7 +105,7 @@ export function EmployeeManagement() {
   const fetchNextEmployeeId = async () => {
     try {
       const response = await fetch('/api/employees/next-id', {
-        cache: 'no-store',
+        cache: 'no-cache', // Always get fresh ID, but don't store
       });
       if (response.ok) {
         const data = await response.json();

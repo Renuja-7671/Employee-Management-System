@@ -28,6 +28,7 @@ export async function GET(request: NextRequest) {
         emergencyContact: true,
         dateOfJoining: true,
         isActive: true,
+        profilePicture: true,
       },
     } as any);
 

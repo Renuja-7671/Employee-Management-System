@@ -78,14 +78,14 @@ export function AttendanceManagement() {
 
   const fetchData = async () => {
     try {
-      const [attendanceData, employeesData, leavesResponse, holidaysResponse] = await Promise.all([
+      const [attendanceResponse, employeesData, leavesResponse, holidaysResponse] = await Promise.all([
         getAttendance(),
         getEmployees(),
-        fetch('/api/leaves', { cache: 'no-store' }),
-        fetch('/api/admin/holidays', { cache: 'no-store' }),
+        fetch('/api/leaves', { next: { revalidate: 30 } }),
+        fetch('/api/admin/holidays', { next: { revalidate: 3600 } }), // Cache holidays for 1 hour
       ]);
 
-      setAttendance(attendanceData);
+      setAttendance(attendanceResponse.attendance);
       // Transform employees data to include full name
       const transformedEmployees = employeesData.map(emp => ({
         ...emp,

@@ -14,23 +14,37 @@ export interface Attendance {
   updatedAt: string;
 }
 
+export interface AttendanceResponse {
+  attendance: Attendance[];
+  pagination?: {
+    page: number;
+    pageSize: number;
+    totalCount: number;
+    totalPages: number;
+  };
+}
+
 export async function getAttendance(
   startDate?: string,
-  endDate?: string
-): Promise<Attendance[]> {
+  endDate?: string,
+  page?: number,
+  pageSize?: number
+): Promise<AttendanceResponse> {
   try {
     let url = '/api/attendance';
     const params = new URLSearchParams();
 
     if (startDate) params.append('startDate', startDate);
     if (endDate) params.append('endDate', endDate);
+    if (page) params.append('page', page.toString());
+    if (pageSize) params.append('pageSize', pageSize.toString());
 
     if (params.toString()) {
       url += `?${params.toString()}`;
     }
 
     const response = await fetch(url, {
-      cache: 'no-store',
+      next: { revalidate: 30 }, // Cache for 30 seconds
       headers: {
         'Content-Type': 'application/json',
       },
@@ -39,14 +53,17 @@ export async function getAttendance(
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error('Failed to fetch attendance:', response.status, errorData);
-      return [];
+      return { attendance: [] };
     }
 
     const data = await response.json();
-    return data.attendance || [];
+    return {
+      attendance: data.attendance || [],
+      pagination: data.pagination,
+    };
   } catch (error) {
     console.error('Error fetching attendance:', error);
-    return [];
+    return { attendance: [] };
   }
 }
 

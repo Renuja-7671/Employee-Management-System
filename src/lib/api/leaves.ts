@@ -21,7 +21,7 @@ export interface Leave {
 export async function getLeaves(): Promise<Leave[]> {
   try {
     const response = await fetch('/api/leaves', {
-      cache: 'no-store',
+      next: { revalidate: 30 }, // Cache for 30 seconds
       headers: {
         'Content-Type': 'application/json',
       },

@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -40,7 +40,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getEmployees, Employee as EmployeeAPI } from '@/lib/api/employees';
-import { getProfilePicture } from '@/lib/api/profile';
 import { Textarea } from '@/components/ui/textarea';
 import { BirthdayEmails } from './BirthdayEmails';
 
@@ -101,14 +100,13 @@ export function EmployeeProfiles() {
       }));
       setEmployees(transformedEmployees);
 
-      // Fetch profile pictures for employees
+      // Build profile pictures object from employee data (no API calls needed)
       const pictures: Record<string, string> = {};
-      await Promise.all(
-        transformedEmployees.map(async (emp) => {
-          const url = await getProfilePicture(emp.id);
-          if (url) pictures[emp.id] = url;
-        })
-      );
+      transformedEmployees.forEach((emp) => {
+        if (emp.profilePicture) {
+          pictures[emp.id] = emp.profilePicture;
+        }
+      });
       setProfilePictures(pictures);
     } catch (error) {
       console.error('Error fetching employees:', error);
@@ -143,7 +141,8 @@ export function EmployeeProfiles() {
     return age;
   };
 
-  const getUpcomingBirthdays = () => {
+  // Memoize the birthday calculation function
+  const getUpcomingBirthdays = useCallback(() => {
     const today = new Date();
     const upcomingDays = 30;
 
@@ -179,7 +178,7 @@ export function EmployeeProfiles() {
       })
       .filter((emp) => emp.daysUntil <= upcomingDays)
       .sort((a, b) => a.daysUntil - b.daysUntil);
-  };
+  }, [employees]);
 
   const sendBirthdayWish = async () => {
     if (!selectedEmployee || !birthdayMessage.trim()) {
@@ -337,14 +336,19 @@ export function EmployeeProfiles() {
     }
   };
 
-  const filteredEmployees = employees.filter(
-    (emp) =>
-      emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.employeeId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      emp.email.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Memoize filtered employees to avoid recalculating on every render
+  const filteredEmployees = useMemo(() => {
+    const query = searchQuery.toLowerCase();
+    return employees.filter(
+      (emp) =>
+        emp.name.toLowerCase().includes(query) ||
+        emp.employeeId.toLowerCase().includes(query) ||
+        emp.email.toLowerCase().includes(query)
+    );
+  }, [employees, searchQuery]);
 
-  const upcomingBirthdays = getUpcomingBirthdays();
+  // Memoize upcoming birthdays calculation
+  const upcomingBirthdays = useMemo(() => getUpcomingBirthdays(), [employees]);
 
   if (loading) {
     return (

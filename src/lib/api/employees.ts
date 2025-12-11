@@ -43,7 +43,7 @@ export interface CreateEmployeeData {
 export async function getEmployees(): Promise<Employee[]> {
   try {
     const response = await fetch('/api/employees', {
-      cache: 'no-store',
+      next: { revalidate: 60 }, // Cache for 60 seconds
       headers: {
         'Content-Type': 'application/json',
       },

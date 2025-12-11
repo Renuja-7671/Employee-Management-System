@@ -52,7 +52,7 @@ export function AdminOverview() {
   const fetchStats = async () => {
     try {
       // Fetch all data in parallel
-      const [employeesData, leavesData, attendanceData] = await Promise.all([
+      const [employeesData, leavesData, attendanceResponse] = await Promise.all([
         getEmployees(),
         getLeaves(),
         getAttendance(),
@@ -60,7 +60,7 @@ export function AdminOverview() {
 
       // Calculate today's attendance
       const today = new Date().toISOString().split('T')[0];
-      const todayAttendance = attendanceData.filter(
+      const todayAttendance = attendanceResponse.attendance.filter(
         (a: any) => a.date === today
       ).length;
 

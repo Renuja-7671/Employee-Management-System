@@ -9,6 +9,8 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const employeeId = searchParams.get('employeeId');
+    const page = parseInt(searchParams.get('page') || '1');
+    const pageSize = parseInt(searchParams.get('pageSize') || '100');
 
     const where: any = {};
 
@@ -24,14 +26,28 @@ export async function GET(request: NextRequest) {
       };
     }
 
+    // Get total count for pagination
+    const totalCount = await prisma.attendance.count({ where });
+
+    // Fetch attendance with pagination
     const attendance = await prisma.attendance.findMany({
       where,
       orderBy: {
         date: 'desc',
       },
+      skip: (page - 1) * pageSize,
+      take: pageSize,
     });
 
-    return NextResponse.json({ attendance });
+    return NextResponse.json({
+      attendance,
+      pagination: {
+        page,
+        pageSize,
+        totalCount,
+        totalPages: Math.ceil(totalCount / pageSize),
+      },
+    });
   } catch (error) {
     console.error('Error fetching attendance:', error);
     return NextResponse.json(
