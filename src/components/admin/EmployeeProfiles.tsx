@@ -35,6 +35,8 @@ import {
   X,
   Gift,
   Users,
+  Upload,
+  Camera,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getEmployees, Employee as EmployeeAPI } from '@/lib/api/employees';
@@ -78,6 +80,8 @@ export function EmployeeProfiles() {
     emergencyContact: '',
   });
   const [saving, setSaving] = useState(false);
+  const [editProfilePicture, setEditProfilePicture] = useState<File | null>(null);
+  const [editProfilePicturePreview, setEditProfilePicturePreview] = useState<string>('');
 
   useEffect(() => {
     fetchEmployees();
@@ -228,6 +232,8 @@ export function EmployeeProfiles() {
 
   const handleCancelEdit = () => {
     setIsEditMode(false);
+    setEditProfilePicture(null);
+    setEditProfilePicturePreview('');
     setEditFormData({
       firstName: '',
       lastName: '',
@@ -242,11 +248,55 @@ export function EmployeeProfiles() {
     });
   };
 
+  const handleProfilePictureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select an image file');
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+      setEditProfilePicture(file);
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditProfilePicturePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSaveEdit = async () => {
     if (!selectedEmployee) return;
 
     setSaving(true);
     try {
+      let profilePicturePath = selectedEmployee.profilePicture;
+
+      // Upload profile picture if one was selected
+      if (editProfilePicture) {
+        const formData = new FormData();
+        formData.append('file', editProfilePicture);
+        formData.append('userId', selectedEmployee.id);
+
+        const uploadResponse = await fetch('/api/upload/profile-picture', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload profile picture');
+        }
+
+        const uploadData = await uploadResponse.json();
+        profilePicturePath = uploadData.filePath;
+      }
+
       const response = await fetch(`/api/employees/${selectedEmployee.id}`, {
         method: 'PUT',
         headers: {
@@ -263,12 +313,15 @@ export function EmployeeProfiles() {
           birthday: editFormData.birthday || null,
           address: editFormData.address || null,
           emergencyContact: editFormData.emergencyContact || null,
+          profilePicture: profilePicturePath,
         }),
       });
 
       if (response.ok) {
         toast.success('Employee details updated successfully');
         setIsEditMode(false);
+        setEditProfilePicture(null);
+        setEditProfilePicturePreview('');
         await fetchEmployees();
         setShowDetailsDialog(false);
       } else {
@@ -487,14 +540,34 @@ export function EmployeeProfiles() {
             <div className="space-y-6">
               {/* Profile Header */}
               <div className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg">
-                <Avatar className="h-20 w-20">
-                  {profilePictures[selectedEmployee.id] && (
-                    <AvatarImage src={profilePictures[selectedEmployee.id]} />
+                <div className="relative">
+                  <Avatar className="h-20 w-20">
+                    {editProfilePicturePreview ? (
+                      <AvatarImage src={editProfilePicturePreview} />
+                    ) : profilePictures[selectedEmployee.id] ? (
+                      <AvatarImage src={profilePictures[selectedEmployee.id]} />
+                    ) : null}
+                    <AvatarFallback className="bg-teal-100 text-teal-700 text-xl">
+                      {getInitials(selectedEmployee.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  {isEditMode && (
+                    <label
+                      htmlFor="profile-picture-upload"
+                      className="absolute bottom-0 right-0 bg-blue-500 hover:bg-blue-600 text-white p-1.5 rounded-full cursor-pointer shadow-lg transition-colors"
+                      title="Upload profile picture"
+                    >
+                      <Camera className="h-4 w-4" />
+                      <input
+                        id="profile-picture-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleProfilePictureChange}
+                        className="hidden"
+                      />
+                    </label>
                   )}
-                  <AvatarFallback className="bg-teal-100 text-teal-700 text-xl">
-                    {getInitials(selectedEmployee.name)}
-                  </AvatarFallback>
-                </Avatar>
+                </div>
                 <div className="flex-1">
                   {isEditMode ? (
                     <div className="space-y-2">
