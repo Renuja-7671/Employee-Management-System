@@ -586,9 +586,6 @@ export function AttendanceManagement() {
                       </>
                     )}
                   </Button>
-                  <p className="text-xs text-gray-500">
-                    Click to manually sync holidays from the Sri Lanka Holidays database.
-                  </p>
                 </div>
               </CardContent>
             </Card>
