@@ -282,7 +282,7 @@ export function EmployeeProfiles() {
       if (editProfilePicture) {
         const formData = new FormData();
         formData.append('file', editProfilePicture);
-        formData.append('userId', selectedEmployee.id);
+        formData.append('employeeId', selectedEmployee.employeeId);
 
         const uploadResponse = await fetch('/api/upload/profile-picture', {
           method: 'POST',
@@ -290,11 +290,12 @@ export function EmployeeProfiles() {
         });
 
         if (!uploadResponse.ok) {
-          throw new Error('Failed to upload profile picture');
+          const errorData = await uploadResponse.json();
+          throw new Error(errorData.error || 'Failed to upload profile picture');
         }
 
         const uploadData = await uploadResponse.json();
-        profilePicturePath = uploadData.filePath;
+        profilePicturePath = uploadData.path;
       }
 
       const response = await fetch(`/api/employees/${selectedEmployee.id}`, {
