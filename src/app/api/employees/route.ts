@@ -30,6 +30,9 @@ export async function GET(request: NextRequest) {
         isActive: true,
         profilePicture: true,
       },
+      orderBy: {
+        employeeId: 'asc',
+      },
     } as any);
 
     return NextResponse.json({ employees });
