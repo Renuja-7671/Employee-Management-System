@@ -37,6 +37,7 @@ import {
   Users,
   Upload,
   Camera,
+  Shield,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getEmployees, Employee as EmployeeAPI } from '@/lib/api/employees';
@@ -72,6 +73,7 @@ export function EmployeeProfiles() {
     nameWithInitials: '',
     email: '',
     phone: '',
+    nic: '',
     position: '',
     department: '',
     birthday: '',
@@ -219,6 +221,7 @@ export function EmployeeProfiles() {
         nameWithInitials: selectedEmployee.nameWithInitials || '',
         email: selectedEmployee.email,
         phone: selectedEmployee.phone || '',
+        nic: selectedEmployee.nic || '',
         position: selectedEmployee.position,
         department: selectedEmployee.department,
         birthday: selectedEmployee.birthday || '',
@@ -239,6 +242,7 @@ export function EmployeeProfiles() {
       nameWithInitials: '',
       email: '',
       phone: '',
+      nic: '',
       position: '',
       department: '',
       birthday: '',
@@ -308,6 +312,7 @@ export function EmployeeProfiles() {
           nameWithInitials: editFormData.nameWithInitials || null,
           email: editFormData.email,
           phoneNumber: editFormData.phone || null,
+          nic: editFormData.nic || null,
           position: editFormData.position,
           department: editFormData.department,
           birthday: editFormData.birthday || null,
@@ -653,6 +658,19 @@ export function EmployeeProfiles() {
                   </div>
 
                   <div className="space-y-2">
+                    <Label htmlFor="edit-nic">NIC (National Identity Card)</Label>
+                    <Input
+                      id="edit-nic"
+                      placeholder="e.g., 199512345678 or 951234567V"
+                      value={editFormData.nic}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, nic: e.target.value })
+                      }
+                      maxLength={12}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
                     <Label htmlFor="edit-position">Position</Label>
                     <Input
                       id="edit-position"
@@ -744,6 +762,16 @@ export function EmployeeProfiles() {
                       <div className="flex items-center gap-2">
                         <Phone className="h-4 w-4 text-gray-400" />
                         <p>{selectedEmployee.phone}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedEmployee.nic && (
+                    <div className="space-y-2">
+                      <Label className="text-gray-600">NIC (National Identity Card)</Label>
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-gray-400" />
+                        <p>{selectedEmployee.nic}</p>
                       </div>
                     </div>
                   )}

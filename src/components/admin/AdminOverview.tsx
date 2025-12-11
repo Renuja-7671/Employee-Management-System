@@ -165,7 +165,7 @@ export function AdminOverview() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm text-gray-700 font-medium">
-              Today's Attendance
+              Today&apos;s Attendance
             </CardTitle>
             <Clock className="h-4 w-4 text-blue-500" />
           </CardHeader>
@@ -233,7 +233,7 @@ export function AdminOverview() {
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                  <span className="text-sm">Mark today's attendance</span>
+                  <span className="text-sm">Mark today&apos;s attendance</span>
                   <span className="text-sm bg-blue-100 text-blue-700 px-2 py-1 rounded font-medium">
                     {stats.todayAttendance}/{stats.totalEmployees}
                   </span>
