@@ -31,7 +31,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Clock, Download, Plus, Fingerprint, Monitor, FileText, RefreshCw } from 'lucide-react';
+import { Clock, Download, Plus, Fingerprint, Monitor, FileText, RefreshCw, Filter } from 'lucide-react';
 import { toast } from 'sonner';
 import { getAttendance, Attendance } from '@/lib/api/attendance';
 import { getEmployees, Employee as EmployeeAPI } from '@/lib/api/employees';
@@ -68,6 +68,7 @@ export function AttendanceManagement() {
   const [endDate, setEndDate] = useState(
     new Date().toISOString().split('T')[0]
   );
+  const [selectedEmployeeFilter, setSelectedEmployeeFilter] = useState<string>('all');
   const [leaves, setLeaves] = useState<any[]>([]);
   const [publicHolidays, setPublicHolidays] = useState<any[]>([]);
   const [syncingHolidays, setSyncingHolidays] = useState(false);
@@ -205,11 +206,13 @@ export function AttendanceManagement() {
     }
   };
 
-  // Filter attendance by date range
+  // Filter attendance by date range and employee
   const filteredAttendance = attendance.filter((a) => {
     if (!startDate || !endDate) return false;
     const attDate = new Date(a.date).toISOString().split('T')[0];
-    return attDate >= startDate && attDate <= endDate;
+    const dateMatch = attDate >= startDate && attDate <= endDate;
+    const employeeMatch = selectedEmployeeFilter === 'all' || a.employeeId === selectedEmployeeFilter;
+    return dateMatch && employeeMatch;
   });
 
   // Helper function to check if a date is a Sunday
@@ -242,15 +245,19 @@ export function AttendanceManagement() {
   };
 
   const exportToCSV = () => {
-    const headers = ['Employee', 'Date', 'Check In', 'Check Out', 'Late Minutes', 'Total Hours'];
-    const rows = filteredAttendance.map((att) => [
-      getEmployeeName(att.employeeId),
-      att.date,
-      formatTime(att.checkIn),
-      formatTime(att.checkOut),
-      `${calculateLateMinutes(att.checkIn)} min`,
-      calculateHours(att.checkIn, att.checkOut),
-    ]);
+    const headers = ['Employee', 'Employee ID', 'Date', 'Check In', 'Check Out', 'Late Minutes', 'Total Hours'];
+    const rows = filteredAttendance.map((att) => {
+      const employee = employees.find(e => e.id === att.employeeId);
+      return [
+        `"${getEmployeeName(att.employeeId)}"`,
+        employee?.employeeId || 'N/A',
+        att.date,
+        formatTime(att.checkIn),
+        formatTime(att.checkOut),
+        `${calculateLateMinutes(att.checkIn)} min`,
+        calculateHours(att.checkIn, att.checkOut),
+      ];
+    });
 
     const csvContent = [
       headers.join(','),
@@ -261,9 +268,17 @@ export function AttendanceManagement() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `attendance_${startDate}_to_${endDate}.csv`;
+
+    // Create filename with employee filter details
+    const employeeName = selectedEmployeeFilter !== 'all'
+      ? employees.find(e => e.id === selectedEmployeeFilter)?.name.replace(/\s+/g, '_')
+      : 'All';
+    const filename = `attendance_${employeeName}_${startDate}_to_${endDate}.csv`;
+
+    a.download = filename;
     a.click();
     window.URL.revokeObjectURL(url);
+    toast.success(`Exported ${filteredAttendance.length} attendance records`);
   };
 
   const syncHolidays = async () => {
@@ -503,7 +518,7 @@ export function AttendanceManagement() {
           <div className="grid gap-6 md:grid-cols-2 mb-6">
             <Card>
               <CardHeader>
-                <CardTitle>Date Range & Finance Report</CardTitle>
+                <CardTitle>Generate Attendance Report</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex flex-col gap-4">
@@ -529,18 +544,10 @@ export function AttendanceManagement() {
                       />
                     </div>
                   </div>
-                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                    <p className="text-xs text-blue-700">
-                      <strong>Note:</strong> This date range applies to both attendance viewing and PDF report generation.
-                    </p>
-                  </div>
                   <Button onClick={generatePDFReport} className="w-full">
                     <FileText className="h-4 w-4 mr-2" />
                     Generate PDF Report
                   </Button>
-                  <p className="text-xs text-gray-500">
-                    Generate a comprehensive finance report with working days (excluding Sundays & holidays), attendance, leave days, and late minutes.
-                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -592,10 +599,14 @@ export function AttendanceManagement() {
               <CardTitle>Attendance Records</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex flex-col sm:flex-row gap-4 mb-6">
-                <div className="flex-1">
-                  <Label htmlFor="viewStartDate" className="text-sm mb-2 block">Date Range</Label>
-                  <div className="grid grid-cols-2 gap-2">
+              <div className="mb-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <Filter className="h-5 w-5 text-gray-500" />
+                  <h3 className="font-medium text-sm">Filter Options</h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="viewStartDate" className="text-sm mb-2 block">Start Date</Label>
                     <Input
                       id="viewStartDate"
                       type="date"
@@ -603,6 +614,9 @@ export function AttendanceManagement() {
                       onChange={(e) => setStartDate(e.target.value)}
                       placeholder="Start Date"
                     />
+                  </div>
+                  <div>
+                    <Label htmlFor="viewEndDate" className="text-sm mb-2 block">End Date</Label>
                     <Input
                       id="viewEndDate"
                       type="date"
@@ -611,22 +625,43 @@ export function AttendanceManagement() {
                       placeholder="End Date"
                     />
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Select date range to view and export attendance records
-                  </p>
+                  <div>
+                    <Label htmlFor="employeeFilter" className="text-sm mb-2 block">Employee</Label>
+                    <Select
+                      value={selectedEmployeeFilter}
+                      onValueChange={setSelectedEmployeeFilter}
+                    >
+                      <SelectTrigger id="employeeFilter">
+                        <SelectValue placeholder="All Employees" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Employees</SelectItem>
+                        {employees.map((emp) => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.name} ({emp.employeeId})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-                <div className="flex gap-2 items-end">
-                  <Button variant="outline" onClick={exportToCSV}>
-                    <Download className="h-4 w-4 mr-2" />
-                    Export CSV
-                  </Button>
-                  <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Mark Attendance
-                      </Button>
-                    </DialogTrigger>
+                <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
+                  <span>
+                    Showing {filteredAttendance.length} record{filteredAttendance.length !== 1 ? 's' : ''}
+                    {selectedEmployeeFilter !== 'all' && ` for ${employees.find(e => e.id === selectedEmployeeFilter)?.name}`}
+                  </span>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={exportToCSV}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Export CSV
+                    </Button>
+                    <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+                      <DialogTrigger asChild>
+                        <Button size="sm">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Mark Attendance
+                        </Button>
+                      </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Mark Employee Attendance</DialogTitle>
@@ -699,11 +734,12 @@ export function AttendanceManagement() {
                     </Button>
                   </form>
                 </DialogContent>
-              </Dialog>
-            </div>
-          </div>
+                    </Dialog>
+                  </div>
+                </div>
+              </div>
 
-          <div className="rounded-md border">
+              <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
