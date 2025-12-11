@@ -256,6 +256,20 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
   const generateCalendarPreview = useMemo(() => {
     if (!formData.startDate || !formData.numberOfDays) return [];
 
+    // Helper function to create a date from YYYY-MM-DD string in local timezone
+    const createLocalDate = (dateStr: string): Date => {
+      const [year, month, day] = dateStr.split('-').map(Number);
+      return new Date(year, month - 1, day);
+    };
+
+    // Helper function to get date string in YYYY-MM-DD format
+    const getDateString = (date: Date): string => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+
     // Helper function to check if a date is a Sunday
     const isSunday = (date: Date): boolean => {
       return date.getDay() === 0;
@@ -263,21 +277,21 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
 
     // Helper function to check if a date is a company holiday
     const isCompanyHoliday = (date: Date): boolean => {
-      return publicHolidays.some(holiday => {
-        const holidayStr = holiday.toISOString().split('T')[0];
-        const dateStr = date.toISOString().split('T')[0];
+      const dateStr = getDateString(date);
+      const isHoliday = publicHolidays.some(holiday => {
+        const holidayStr = getDateString(new Date(holiday));
         return holidayStr === dateStr;
       });
+      return isHoliday;
     };
 
     const dates: Date[] = [];
-    const start = new Date(formData.startDate);
+    const start = createLocalDate(formData.startDate);
 
     // For 0.5 or 1 day, only show the start date if it's a working day
     if (formData.numberOfDays <= 1) {
-      const startDate = new Date(start);
-      if (!isSunday(startDate) && !isCompanyHoliday(startDate)) {
-        dates.push(startDate);
+      if (!isSunday(start) && !isCompanyHoliday(start)) {
+        dates.push(start);
       }
     } else {
       // For multiple days, collect all working days
