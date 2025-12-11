@@ -5,7 +5,48 @@ import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const startDate = searchParams.get('startDate');
+    const endDate = searchParams.get('endDate');
+    const employeeId = searchParams.get('employeeId');
+
+    // Build where clause
+    const where: any = {};
+
+    // Filter by employee if provided
+    if (employeeId) {
+      where.employeeId = employeeId;
+    }
+
+    // Filter by date range if provided
+    if (startDate && endDate) {
+      where.OR = [
+        {
+          // Leave starts within the date range
+          AND: [
+            { startDate: { gte: new Date(startDate) } },
+            { startDate: { lte: new Date(endDate) } },
+          ],
+        },
+        {
+          // Leave ends within the date range
+          AND: [
+            { endDate: { gte: new Date(startDate) } },
+            { endDate: { lte: new Date(endDate) } },
+          ],
+        },
+        {
+          // Leave spans the entire date range
+          AND: [
+            { startDate: { lte: new Date(startDate) } },
+            { endDate: { gte: new Date(endDate) } },
+          ],
+        },
+      ];
+    }
+
     const leaves = await prisma.leave.findMany({
+      where,
       include: {
         employee: {
           select: {

@@ -76,6 +76,22 @@ export function LeaveManagement() {
   const [currentAdminType, setCurrentAdminType] = useState<string | null>(null);
   const [currentAdminId, setCurrentAdminId] = useState<string>('');
 
+  // Date filter states - default to current month
+  const getCurrentMonthDates = () => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return {
+      start: firstDay.toISOString().split('T')[0],
+      end: lastDay.toISOString().split('T')[0],
+    };
+  };
+
+  const currentMonth = getCurrentMonthDates();
+  const [startDate, setStartDate] = useState<string>(currentMonth.start);
+  const [endDate, setEndDate] = useState<string>(currentMonth.end);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('all');
+
   useEffect(() => {
     // Get current admin info from localStorage
     const userStr = localStorage.getItem('user');
@@ -88,10 +104,20 @@ export function LeaveManagement() {
     fetchData();
   }, []);
 
+  useEffect(() => {
+    // Refetch data when filters change
+    fetchData();
+  }, [startDate, endDate, selectedEmployeeId]);
+
   const fetchData = async () => {
     try {
+      setLoading(true);
       const [leavesData, employeesData] = await Promise.all([
-        getLeaves(),
+        getLeaves(
+          startDate,
+          endDate,
+          selectedEmployeeId === 'all' ? undefined : selectedEmployeeId
+        ),
         getEmployees(),
       ]);
 
@@ -208,36 +234,54 @@ export function LeaveManagement() {
   const exportToCSV = () => {
     const headers = [
       'Employee',
+      'Employee ID',
       'Leave Type',
       'Start Date',
       'End Date',
       'Days',
       'Status',
       'Applied Date',
+      'Cover Employee',
     ];
-    const rows = filteredLeaves.map((leave) => [
-      getEmployeeName(leave.userId),
-      leave.leaveType,
-      leave.startDate,
-      leave.endDate,
-      leave.days,
-      leave.status,
-      new Date(leave.createdAt).toLocaleDateString(),
-    ]);
+    const rows = filteredLeaves.map((leave) => {
+      const employee = employees.find(e => e.id === leave.userId);
+      const coverEmployee = leave.coverEmployeeId
+        ? employees.find(e => e.id === leave.coverEmployeeId)
+        : null;
+
+      return [
+        getEmployeeName(leave.userId),
+        employee?.employeeId || 'N/A',
+        leave.leaveType,
+        leave.startDate,
+        leave.endDate,
+        leave.days,
+        leave.status,
+        new Date(leave.createdAt).toLocaleDateString(),
+        coverEmployee ? `${coverEmployee.name}` : 'N/A',
+      ];
+    });
 
     const csvContent = [
       headers.join(','),
-      ...rows.map((row) => row.join(',')),
+      ...rows.map((row) => row.map(cell => `"${cell}"`).join(',')),
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `leave_requests_${new Date().toISOString().split('T')[0]}.csv`;
+
+    // Create filename with filter details
+    const employeeName = selectedEmployeeId !== 'all'
+      ? employees.find(e => e.id === selectedEmployeeId)?.name.replace(/\s+/g, '_')
+      : 'All';
+    const filename = `leave_requests_${employeeName}_${startDate}_to_${endDate}.csv`;
+
+    a.download = filename;
     a.click();
     window.URL.revokeObjectURL(url);
-    toast.success('Leave requests exported');
+    toast.success(`Exported ${filteredLeaves.length} leave requests`);
   };
 
   const filteredLeaves =
@@ -280,16 +324,60 @@ export function LeaveManagement() {
         </Card>
       )}
 
-      {/* Main Table */}
+      {/* Filters */}
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <CardTitle>Leave Requests</CardTitle>
-            <div className="flex gap-2">
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filter Leave Requests
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Date Range */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Start Date</Label>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">End Date</Label>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </div>
+
+            {/* Employee Filter */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Employee</Label>
+              <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Employees" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Employees</SelectItem>
+                  {employees.map((emp) => (
+                    <SelectItem key={emp.id} value={emp.id}>
+                      {emp.name} ({emp.employeeId})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Status Filter */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Status</Label>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px]">
-                  <Filter className="h-4 w-4 mr-2" />
-                  <SelectValue placeholder="Filter by status" />
+                <SelectTrigger>
+                  <SelectValue placeholder="All Statuses" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Statuses</SelectItem>
@@ -299,12 +387,27 @@ export function LeaveManagement() {
                   <SelectItem value="CANCELLED">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
-              <Button variant="outline" onClick={exportToCSV}>
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
-              </Button>
             </div>
           </div>
+
+          {/* Results Summary */}
+          <div className="mt-4 flex items-center justify-between text-sm text-muted-foreground">
+            <span>
+              Showing {filteredLeaves.length} leave{filteredLeaves.length !== 1 ? 's' : ''}
+              {selectedEmployeeId !== 'all' && ` for ${employees.find(e => e.id === selectedEmployeeId)?.name}`}
+            </span>
+            <Button variant="outline" size="sm" onClick={exportToCSV}>
+              <Download className="h-4 w-4 mr-2" />
+              Export CSV
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Main Table */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Leave Requests</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="rounded-md border">

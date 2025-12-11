@@ -18,9 +18,24 @@ export interface Leave {
   updatedAt: string;
 }
 
-export async function getLeaves(): Promise<Leave[]> {
+export async function getLeaves(
+  startDate?: string,
+  endDate?: string,
+  employeeId?: string
+): Promise<Leave[]> {
   try {
-    const response = await fetch('/api/leaves', {
+    let url = '/api/leaves';
+    const params = new URLSearchParams();
+
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    if (employeeId) params.append('employeeId', employeeId);
+
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+
+    const response = await fetch(url, {
       next: { revalidate: 30 }, // Cache for 30 seconds
       headers: {
         'Content-Type': 'application/json',
