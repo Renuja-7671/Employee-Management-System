@@ -74,6 +74,13 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
         const data = await response.json();
         const holidayDates = data.holidays.map((h: any) => new Date(h.date));
         setPublicHolidays(holidayDates);
+        console.log('📅 Fetched', data.holidays.length, 'company holidays');
+        console.log('Holiday dates as strings:', holidayDates.map((d: Date) => {
+          const year = d.getFullYear();
+          const month = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${year}-${month}-${day}`;
+        }));
       }
     } catch (error) {
       console.error('Error fetching holidays:', error);
@@ -279,9 +286,14 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
     const isCompanyHoliday = (date: Date): boolean => {
       const dateStr = getDateString(date);
       const isHoliday = publicHolidays.some(holiday => {
-        const holidayStr = getDateString(new Date(holiday));
-        return holidayStr === dateStr;
+        const holidayStr = getDateString(holiday);
+        const matches = holidayStr === dateStr;
+        if (matches) {
+          console.log(`✅ ${dateStr} is a company holiday (matches ${holidayStr})`);
+        }
+        return matches;
       });
+      console.log(`Checking ${dateStr}: isHoliday=${isHoliday}, total holidays=${publicHolidays.length}`);
       return isHoliday;
     };
 

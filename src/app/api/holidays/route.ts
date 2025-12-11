@@ -5,6 +5,7 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const year = searchParams.get('year');
+    const showAll = searchParams.get('all'); // For debugging
 
     // Build where clause
     const where: any = {};
@@ -21,11 +22,14 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Only fetch company holidays (Mercantile and Poya)
-    where.OR = [
-      { description: { contains: 'Mercantile', mode: 'insensitive' } },
-      { description: { contains: 'Poya', mode: 'insensitive' } }
-    ];
+    // Only fetch company holidays (Mercantile and Poya) unless showAll is true
+    if (!showAll) {
+      where.OR = [
+        { description: { contains: 'Mercantile', mode: 'insensitive' } },
+        { description: { contains: 'Poya', mode: 'insensitive' } },
+        { name: { contains: 'Poya', mode: 'insensitive' } }
+      ];
+    }
 
     const holidays = await prisma.publicHoliday.findMany({
       where,
