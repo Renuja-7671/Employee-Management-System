@@ -211,7 +211,7 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
 
   // Get max number of days based on leave type
   const getMaxDays = () => {
-    if (formData.leaveType === 'annual') return 3;
+    if (formData.leaveType === 'annual') return 7;
     if (formData.leaveType === 'official') return 3;
     if (formData.leaveType === 'casual') return 1; // Casual: 0.5 or 1 day only
     return 14; // Default max for other types
@@ -284,9 +284,9 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
       if (!confirmed) return;
     }
 
-    // Validate annual leave max 3 days
-    if (formData.leaveType === 'annual' && days > 3) {
-      toast.error('Annual leave cannot exceed 3 continuous days per request');
+    // Validate annual leave max 7 days
+    if (formData.leaveType === 'annual' && days > 7) {
+      toast.error('Annual leave cannot exceed 7 consecutive days per request');
       return;
     }
 
@@ -473,7 +473,7 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
               )}
               {formData.leaveType === 'annual' && (
                 <p className="text-xs text-blue-600 mt-1">
-                  Annual leave: max 3 consecutive days per request, must be planned at least 7 days in advance
+                  Annual leave: max 7 consecutive days per request, must be planned at least 7 days in advance
                 </p>
               )}
               {formData.leaveType === 'casual' && (

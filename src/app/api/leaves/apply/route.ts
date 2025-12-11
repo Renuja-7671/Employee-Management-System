@@ -1,6 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
+// Helper function to check if a date is a Sunday
+const isSunday = (date: Date): boolean => {
+  return date.getDay() === 0;
+};
+
+// Helper function to check if a date is a company holiday (Mercantile or Poya)
+const isCompanyHoliday = async (date: Date): Promise<boolean> => {
+  const dateStr = date.toISOString().split('T')[0];
+  const holiday = await prisma.publicHoliday.findFirst({
+    where: {
+      date: new Date(dateStr),
+      OR: [
+        { description: { contains: 'Mercantile', mode: 'insensitive' } },
+        { description: { contains: 'Poya', mode: 'insensitive' } }
+      ]
+    }
+  });
+  return holiday !== null;
+};
+
+// Helper function to calculate working days (excluding Sundays and company holidays)
+const calculateWorkingDays = async (startDate: Date, endDate: Date): Promise<number> => {
+  let workingDays = 0;
+  const currentDate = new Date(startDate);
+
+  while (currentDate <= endDate) {
+    if (!isSunday(currentDate) && !(await isCompanyHoliday(currentDate))) {
+      workingDays++;
+    }
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return workingDays;
+};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -23,11 +58,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use numberOfDays from request (handles half-day 0.5 for casual leave)
-    // Fall back to date calculation for other leave types if not provided
     const start = new Date(startDate);
     const end = new Date(endDate);
-    const totalDays = numberOfDays || Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+    // Calculate working days excluding Sundays and company holidays
+    // For half-day (0.5) leaves, use the provided numberOfDays
+    const totalDays = numberOfDays === 0.5 ? 0.5 : await calculateWorkingDays(start, end);
 
     // Validate dates
     if (start > end) {
@@ -122,10 +158,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate annual leave max 3 days per request
-    if (leaveTypeUpper === 'ANNUAL' && totalDays > 3) {
+    // Validate annual leave max 7 consecutive days per request
+    if (leaveTypeUpper === 'ANNUAL' && totalDays > 7) {
       return NextResponse.json(
-        { error: 'Annual leave cannot exceed 3 continuous days per request' },
+        { error: 'Annual leave cannot exceed 7 consecutive days per request' },
         { status: 400 }
       );
     }
