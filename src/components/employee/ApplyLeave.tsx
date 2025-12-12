@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -15,7 +15,7 @@ interface ApplyLeaveProps {
   onSuccess: () => void;
 }
 
-export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
+export const ApplyLeave = memo(function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
   const [leaveBalance, setLeaveBalance] = useState({
     annual: 0,
     casual: 0,
@@ -41,51 +41,37 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
   const [medicalCertFile, setMedicalCertFile] = useState<File | null>(null);
   const [publicHolidays, setPublicHolidays] = useState<Date[]>([]);
 
+  // Fetch initial data (balance + holidays) in parallel
   useEffect(() => {
-    fetchData();
-    fetchHolidays();
-  }, []);
+    const fetchInitialData = async () => {
+      try {
+        const currentYear = new Date().getFullYear();
 
-  const fetchData = async () => {
-    try {
-      const balanceResponse = await fetch(`/api/leaves/balance?userId=${user.id}`, {
-        cache: 'no-store',
-      });
+        // Fetch both in parallel for better performance
+        const [statsResponse, holidaysResponse] = await Promise.all([
+          fetch(`/api/employees/${user.id}/stats`, { cache: 'no-store' }),
+          fetch(`/api/holidays?year=${currentYear}`, { cache: 'no-store' }),
+        ]);
 
-      if (balanceResponse.ok) {
-        const balanceData = await balanceResponse.json();
-        setLeaveBalance(balanceData.balance || { annual: 0, casual: 0, medical: 0 });
-        setLeaveCounts(balanceData.counts || { medicalLeaveTaken: 0, officialLeaveTaken: 0 });
+        if (statsResponse.ok) {
+          const statsData = await statsResponse.json();
+          setLeaveBalance(statsData.balance || { annual: 0, casual: 0, medical: 0 });
+          setLeaveCounts(statsData.counts || { medicalLeaveTaken: 0, officialLeaveTaken: 0 });
+        }
+
+        if (holidaysResponse.ok) {
+          const holidaysData = await holidaysResponse.json();
+          const holidayDates = holidaysData.holidays.map((h: any) => new Date(h.date));
+          setPublicHolidays(holidayDates);
+        }
+      } catch (error) {
+        console.error('Error fetching initial data:', error);
+        toast.error('Error loading data');
       }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error('Error loading data');
-    }
-  };
+    };
 
-  const fetchHolidays = async () => {
-    try {
-      const currentYear = new Date().getFullYear();
-      const response = await fetch(`/api/holidays?year=${currentYear}`, {
-        cache: 'no-store',
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const holidayDates = data.holidays.map((h: any) => new Date(h.date));
-        setPublicHolidays(holidayDates);
-        console.log('📅 Fetched', data.holidays.length, 'company holidays');
-        console.log('Holiday dates as strings:', holidayDates.map((d: Date) => {
-          const year = d.getFullYear();
-          const month = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          return `${year}-${month}-${day}`;
-        }));
-      }
-    } catch (error) {
-      console.error('Error fetching holidays:', error);
-    }
-  };
+    fetchInitialData();
+  }, [user.id]);
 
   // Fetch available employees based on selected dates
   const fetchAvailableEmployees = useCallback(async (startDate: string, endDate: string) => {
@@ -97,10 +83,8 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
 
       if (response.ok) {
         const data = await response.json();
-        console.log('Available employees:', data.employees);
         setEmployees(data.employees || []);
       } else {
-        console.error('Failed to fetch available employees');
         setEmployees([]);
       }
     } catch (error) {
@@ -285,16 +269,10 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
     // Helper function to check if a date is a company holiday
     const isCompanyHoliday = (date: Date): boolean => {
       const dateStr = getDateString(date);
-      const isHoliday = publicHolidays.some(holiday => {
+      return publicHolidays.some(holiday => {
         const holidayStr = getDateString(holiday);
-        const matches = holidayStr === dateStr;
-        if (matches) {
-          console.log(`✅ ${dateStr} is a company holiday (matches ${holidayStr})`);
-        }
-        return matches;
+        return holidayStr === dateStr;
       });
-      console.log(`Checking ${dateStr}: isHoliday=${isHoliday}, total holidays=${publicHolidays.length}`);
-      return isHoliday;
     };
 
     const dates: Date[] = [];
@@ -793,4 +771,4 @@ export function ApplyLeave({ user, onSuccess }: ApplyLeaveProps) {
       </Card>
     </div>
   );
-}
+});

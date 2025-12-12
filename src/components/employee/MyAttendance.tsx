@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -13,18 +13,16 @@ interface MyAttendanceProps {
   user: any;
 }
 
-export function MyAttendance({ user }: MyAttendanceProps) {
+export const MyAttendance = memo(function MyAttendance({ user }: MyAttendanceProps) {
   const [attendance, setAttendance] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().substring(0, 7));
 
-  useEffect(() => {
-    fetchAttendance();
-  }, []);
-
-  const fetchAttendance = async () => {
+  // Fetch attendance data for selected month only
+  const fetchAttendance = useCallback(async (month: string) => {
+    setLoading(true);
     try {
-      const response = await fetch(`/api/attendance?employeeId=${user.id}`, {
+      const response = await fetch(`/api/employees/${user.id}/attendance?month=${month}`, {
         cache: 'no-store',
       });
 
@@ -37,7 +35,16 @@ export function MyAttendance({ user }: MyAttendanceProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user.id]);
+
+  useEffect(() => {
+    fetchAttendance(filterMonth);
+  }, [filterMonth, fetchAttendance]);
+
+  // Handle month change
+  const handleMonthChange = useCallback((newMonth: string) => {
+    setFilterMonth(newMonth);
+  }, []);
 
   const formatTime = (dateTime: string | Date | null | undefined): string => {
     if (!dateTime) return 'N/A';
@@ -97,36 +104,31 @@ export function MyAttendance({ user }: MyAttendanceProps) {
     }
   };
 
-  const filteredAttendance = filterMonth
-    ? attendance.filter(a => {
-        const attDate = new Date(a.date);
-        const filterDate = new Date(filterMonth);
-        return attDate.getFullYear() === filterDate.getFullYear() &&
-               attDate.getMonth() === filterDate.getMonth();
-      })
-    : attendance;
+  // Memoize stats calculation for performance
+  const stats = useMemo(() => {
+    const totalHours = attendance.reduce((sum, a) => sum + calculateHours(a.checkIn, a.checkOut), 0);
+    return {
+      totalDays: attendance.length,
+      totalHours,
+      avgHours: attendance.length > 0 ? totalHours / attendance.length : 0,
+      totalLateMinutes: attendance.reduce((sum, a) => sum + calculateLateMinutes(a.checkIn), 0),
+    };
+  }, [attendance]);
 
-  const stats = {
-    totalDays: filteredAttendance.length,
-    totalHours: filteredAttendance.reduce((sum, a) => sum + calculateHours(a.checkIn, a.checkOut), 0),
-    avgHours: filteredAttendance.length > 0
-      ? filteredAttendance.reduce((sum, a) => sum + calculateHours(a.checkIn, a.checkOut), 0) / filteredAttendance.length
-      : 0,
-    totalLateMinutes: filteredAttendance.reduce((sum, a) => sum + calculateLateMinutes(a.checkIn), 0),
-  };
-
-  // Prepare chart data (last 7 days)
-  const chartData = filteredAttendance
-    .slice(0, 7)
-    .reverse()
-    .map(a => ({
-      date: new Date(a.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      hours: calculateHours(a.checkIn, a.checkOut),
-    }));
+  // Memoize chart data (last 7 days)
+  const chartData = useMemo(() =>
+    attendance
+      .slice(0, 7)
+      .reverse()
+      .map(a => ({
+        date: new Date(a.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        hours: calculateHours(a.checkIn, a.checkOut),
+      }))
+  , [attendance]);
 
   const exportToCSV = () => {
     const headers = ['Date', 'Check In', 'Check Out', 'Late Minutes', 'Total Hours'];
-    const rows = filteredAttendance.map(att => [
+    const rows = attendance.map((att: any) => [
       new Date(att.date).toLocaleDateString(),
       formatTime(att.checkIn),
       formatTime(att.checkOut),
@@ -136,7 +138,7 @@ export function MyAttendance({ user }: MyAttendanceProps) {
 
     const csvContent = [
       headers.join(','),
-      ...rows.map(row => row.join(',')),
+      ...rows.map((row: any) => row.join(',')),
     ].join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -252,7 +254,7 @@ export function MyAttendance({ user }: MyAttendanceProps) {
               id="filterMonth"
               type="month"
               value={filterMonth}
-              onChange={(e) => setFilterMonth(e.target.value)}
+              onChange={(e) => handleMonthChange(e.target.value)}
               className="max-w-xs"
             />
           </div>
@@ -268,14 +270,14 @@ export function MyAttendance({ user }: MyAttendanceProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredAttendance.length === 0 ? (
+              {attendance.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={5} className="text-center text-gray-500">
                     No attendance records found for selected month
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredAttendance.map((att) => {
+                attendance.map((att: any) => {
                   const lateMinutes = calculateLateMinutes(att.checkIn);
                   return (
                     <TableRow key={att.id}>
@@ -308,4 +310,4 @@ export function MyAttendance({ user }: MyAttendanceProps) {
       </Card>
     </div>
   );
-}
+});

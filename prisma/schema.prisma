@@ -1,23 +1,23 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
 }
-        
+
 model User {
-  id               String    @id @default(uuid())
-  email            String    @unique
+  id               String     @id @default(uuid())
+  email            String     @unique
   password         String
-  role             Role      @default(EMPLOYEE)
+  role             Role       @default(EMPLOYEE)
   adminType        AdminType?
-  employeeId       String    @unique
+  employeeId       String     @unique
   firstName        String
   lastName         String
   nameWithInitials String?
-  nic              String?   @unique
+  nic              String?    @unique
   department       Department
   position         String
   phoneNumber      String?
@@ -25,19 +25,19 @@ model User {
   address          String?
   emergencyContact String?
   profilePicture   String?
-  dateOfJoining    DateTime  @default(now())
-  isActive         Boolean   @default(true)
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  dateOfJoining    DateTime   @default(now())
+  isActive         Boolean    @default(true)
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
   // Relations
-  leaves              Leave[]          @relation("EmployeeLeaves")
-  coverRequests       CoverRequest[]   @relation("CoverEmployee")
-  requestedLeaves     Leave[]          @relation("RequestedLeaves")
+  leaves              Leave[]              @relation("EmployeeLeaves")
+  coverRequests       CoverRequest[]       @relation("CoverEmployee")
+  requestedLeaves     Leave[]              @relation("RequestedLeaves")
   attendance          Attendance[]
   leaveBalance        LeaveBalance?
   notifications       Notification[]
-  sentNotifications   Notification[]   @relation("NotificationSender")
+  sentNotifications   Notification[]       @relation("NotificationSender")
   biometricMapping    BiometricMapping?
   passwordResetTokens PasswordResetToken[]
 
@@ -49,27 +49,27 @@ model User {
 }
 
 model Leave {
-  id                String      @id @default(uuid())
-  employeeId        String
-  employee          User        @relation("EmployeeLeaves", fields: [employeeId], references: [id], onDelete: Cascade)
-  leaveType         LeaveType
-  startDate         DateTime
-  endDate           DateTime
-  totalDays         Float
-  reason            String
-  status            LeaveStatus @default(PENDING_COVER)
-  adminResponse     String?
-  coverEmployeeId   String?
-  coverEmployee     User?       @relation("RequestedLeaves", fields: [coverEmployeeId], references: [id])
-  medicalCertPath   String?
-  isNoPay           Boolean     @default(false)
-  isCancelled       Boolean     @default(false)
+  id                 String      @id @default(uuid())
+  employeeId         String
+  employee           User        @relation("EmployeeLeaves", fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType          LeaveType
+  startDate          DateTime
+  endDate            DateTime
+  totalDays          Float
+  reason             String
+  status             LeaveStatus @default(PENDING_COVER)
+  adminResponse      String?
+  coverEmployeeId    String?
+  coverEmployee      User?       @relation("RequestedLeaves", fields: [coverEmployeeId], references: [id])
+  medicalCertPath    String?
+  isNoPay            Boolean     @default(false)
+  isCancelled        Boolean     @default(false)
   cancellationReason String?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
 
   // Relations
-  coverRequest      CoverRequest?
+  coverRequest CoverRequest?
 
   @@index([employeeId])
   @@index([status])
@@ -77,14 +77,14 @@ model Leave {
 }
 
 model CoverRequest {
-  id              String        @id @default(uuid())
-  leaveId         String        @unique
-  leave           Leave         @relation(fields: [leaveId], references: [id], onDelete: Cascade)
+  id              String      @id @default(uuid())
+  leaveId         String      @unique
+  leave           Leave       @relation(fields: [leaveId], references: [id], onDelete: Cascade)
   coverEmployeeId String
-  coverEmployee   User          @relation("CoverEmployee", fields: [coverEmployeeId], references: [id])
-  status          CoverStatus   @default(PENDING)
+  coverEmployee   User        @relation("CoverEmployee", fields: [coverEmployeeId], references: [id])
+  status          CoverStatus @default(PENDING)
   responseMessage String?
-  requestedAt     DateTime      @default(now())
+  requestedAt     DateTime    @default(now())
   respondedAt     DateTime?
   expiresAt       DateTime
 
@@ -93,15 +93,15 @@ model CoverRequest {
 }
 
 model CoverDutyReassignment {
-  id                    String   @id @default(uuid())
-  originalLeaveId       String   // The original leave that needed covering
-  coverEmployeeLeaveId  String   // The leave taken by the cover employee
+  id                      String   @id @default(uuid())
+  originalLeaveId         String // The original leave that needed covering
+  coverEmployeeLeaveId    String // The leave taken by the cover employee
   originalCoverEmployeeId String // Who was supposed to cover
-  newCoverEmployeeId    String?  // Who is now covering (assigned by HR)
-  reassignedBy          String?  // HR Head who reassigned
-  status                String   @default("PENDING") // PENDING, REASSIGNED, CANCELLED
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  newCoverEmployeeId      String? // Who is now covering (assigned by HR)
+  reassignedBy            String? // HR Head who reassigned
+  status                  String   @default("PENDING") // PENDING, REASSIGNED, CANCELLED
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
 
   @@index([originalLeaveId])
   @@index([coverEmployeeLeaveId])
@@ -109,21 +109,21 @@ model CoverDutyReassignment {
 }
 
 model Attendance {
-  id          String            @id @default(uuid())
-  employeeId  String
-  employee    User              @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  date        DateTime
-  checkIn     DateTime?
-  checkOut    DateTime?
-  status      AttendanceStatus
-  workHours   Float?
-  isWeekend   Boolean           @default(false)
-  notes       String?
-  deviceId    String?           // ID of the biometric device
-  verifyMode  Int?              // Verification method (fingerprint, card, face)
-  source      AttendanceSource  @default(MANUAL)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  id         String           @id @default(uuid())
+  employeeId String
+  employee   User             @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  date       DateTime
+  checkIn    DateTime?
+  checkOut   DateTime?
+  status     AttendanceStatus
+  workHours  Float?
+  isWeekend  Boolean          @default(false)
+  notes      String?
+  deviceId   String? // ID of the biometric device
+  verifyMode Int? // Verification method (fingerprint, card, face)
+  source     AttendanceSource @default(MANUAL)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
 
   @@unique([employeeId, date])
   @@index([employeeId])
@@ -132,32 +132,32 @@ model Attendance {
 }
 
 model LeaveBalance {
-  id          String   @id @default(uuid())
-  employeeId  String   @unique
-  employee    User     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  year        Int
-  annual      Float    @default(14)
-  casual      Float    @default(7)
-  medical     Float    @default(7)
-  official    Float    @default(0)
-  updatedAt   DateTime @updatedAt
+  id         String   @id @default(uuid())
+  employeeId String   @unique
+  employee   User     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  year       Int
+  annual     Float    @default(14)
+  casual     Float    @default(7)
+  medical    Float    @default(7)
+  official   Float    @default(0)
+  updatedAt  DateTime @updatedAt
 
   @@index([year])
 }
 
 model Notification {
-  id          String             @id @default(uuid())
-  userId      String
-  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type        NotificationType
-  title       String
-  message     String
-  isRead      Boolean            @default(false)
-  isPinned    Boolean            @default(false)
-  senderId    String?
-  sender      User?              @relation("NotificationSender", fields: [senderId], references: [id])
-  relatedId   String?
-  createdAt   DateTime           @default(now())
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  isRead    Boolean          @default(false)
+  isPinned  Boolean          @default(false)
+  senderId  String?
+  sender    User?            @relation("NotificationSender", fields: [senderId], references: [id])
+  relatedId String?
+  createdAt DateTime         @default(now())
 
   @@index([userId])
   @@index([isRead])
@@ -176,52 +176,52 @@ model PublicHoliday {
 }
 
 model BiometricDevice {
-  id              String   @id @default(uuid())
+  id              String     @id @default(uuid())
   name            String
   deviceType      DeviceType
   ipAddress       String
-  port            Int      @default(80)
+  port            Int        @default(80)
   username        String
-  password        String   // Encrypted in production
-  serialNumber    String?  @unique
+  password        String // Encrypted in production
+  serialNumber    String?    @unique
   model           String?
   firmwareVersion String?
   macAddress      String?
-  isActive        Boolean  @default(true)
+  isActive        Boolean    @default(true)
   lastSyncAt      DateTime?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
 
   @@index([serialNumber])
   @@index([isActive])
 }
 
 model BiometricMapping {
-  id             String   @id @default(uuid())
-  employeeId     String   @unique
-  employee       User     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  deviceEmployeeNo String  @unique // Employee number in the biometric device
-  cardNo         String?  // Card number if using RFID card
-  fingerprintEnrolled Boolean @default(false)
-  faceEnrolled   Boolean @default(false)
-  syncedAt       DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                  String    @id @default(uuid())
+  employeeId          String    @unique
+  employee            User      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  deviceEmployeeNo    String    @unique // Employee number in the biometric device
+  cardNo              String? // Card number if using RFID card
+  fingerprintEnrolled Boolean   @default(false)
+  faceEnrolled        Boolean   @default(false)
+  syncedAt            DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 }
 
 model AttendanceLog {
-  id             String   @id @default(uuid())
+  id               String    @id @default(uuid())
   deviceEmployeeNo String
-  employeeId     String?  // Null if not mapped yet
-  timestamp      DateTime
-  verifyMode     Int      // 0: Card, 1: Fingerprint, 2: Face
-  inOutType      Int      // 0: In, 1: Out
-  deviceId       String?
-  deviceName     String?
-  processed      Boolean  @default(false)
-  processedAt    DateTime?
-  errorMessage   String?
-  createdAt      DateTime @default(now())
+  employeeId       String? // Null if not mapped yet
+  timestamp        DateTime
+  verifyMode       Int // 0: Card, 1: Fingerprint, 2: Face
+  inOutType        Int // 0: In, 1: Out
+  deviceId         String?
+  deviceName       String?
+  processed        Boolean   @default(false)
+  processedAt      DateTime?
+  errorMessage     String?
+  createdAt        DateTime  @default(now())
 
   @@index([deviceEmployeeNo])
   @@index([employeeId])
@@ -309,14 +309,14 @@ enum AttendanceSource {
 }
 
 model PasswordResetToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token     String   @unique
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String    @unique
   expiresAt DateTime
-  used      Boolean  @default(false)
+  used      Boolean   @default(false)
   usedAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   @@index([userId])
   @@index([token])

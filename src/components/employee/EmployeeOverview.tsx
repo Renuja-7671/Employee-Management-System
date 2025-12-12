@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Calendar, Clock, Umbrella, AlertCircle } from 'lucide-react';
 import { Progress } from '../ui/progress';
@@ -9,7 +9,7 @@ interface EmployeeOverviewProps {
   user: any;
 }
 
-export function EmployeeOverview({ user }: EmployeeOverviewProps) {
+export const EmployeeOverview = memo(function EmployeeOverview({ user }: EmployeeOverviewProps) {
   const [leaveBalance, setLeaveBalance] = useState({
     annual: 0,
     casual: 0,
@@ -26,63 +26,29 @@ export function EmployeeOverview({ user }: EmployeeOverviewProps) {
   });
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const [balanceResponse, leavesResponse, attendanceResponse] = await Promise.all([
-        fetch(`/api/leaves/balance?userId=${user.id}`, {
-          cache: 'no-store',
-        }),
-        fetch('/api/leaves', {
-          cache: 'no-store',
-        }),
-        fetch('/api/attendance', {
-          cache: 'no-store',
-        }),
-      ]);
+      // Use optimized endpoint that fetches all data in one call
+      const response = await fetch(`/api/employees/${user.id}/stats`, {
+        cache: 'no-store',
+      });
 
-      if (balanceResponse.ok) {
-        const balanceData = await balanceResponse.json();
-        setLeaveBalance(balanceData.balance || { annual: 0, casual: 0, medical: 0 });
-        setLeaveCounts(balanceData.counts || { medicalLeaveTaken: 0, officialLeaveTaken: 0 });
-      }
-
-      if (leavesResponse.ok) {
-        const leavesData = await leavesResponse.json();
-        const myLeaves = (leavesData.leaves || []).filter((l: any) => l.employeeId === user.id);
-        const pendingLeaves = myLeaves.filter(
-          (l: any) => l.status === 'PENDING_COVER' || l.status === 'PENDING_ADMIN'
-        ).length;
-        const approvedLeaves = myLeaves.filter((l: any) => l.status === 'APPROVED').length;
-
-        setStats(prev => ({
-          ...prev,
-          pendingLeaves,
-          approvedLeaves,
-        }));
-      }
-
-      if (attendanceResponse.ok) {
-        const attendanceData = await attendanceResponse.json();
-        const currentMonth = new Date().getMonth();
-        const thisMonthAttendance = (attendanceData.attendance || []).filter((a: any) => {
-          return new Date(a.date).getMonth() === currentMonth;
-        }).length;
-
-        setStats(prev => ({
-          ...prev,
-          attendanceThisMonth: thisMonthAttendance,
-        }));
+      if (response.ok) {
+        const data = await response.json();
+        setLeaveBalance(data.balance || { annual: 0, casual: 0, medical: 0 });
+        setLeaveCounts(data.counts || { medicalLeaveTaken: 0, officialLeaveTaken: 0 });
+        setStats(data.stats || { pendingLeaves: 0, approvedLeaves: 0, attendanceThisMonth: 0 });
       }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user.id]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (loading) {
     return <div className="text-center py-8">Loading...</div>;
@@ -207,4 +173,4 @@ export function EmployeeOverview({ user }: EmployeeOverviewProps) {
       </Card>
     </div>
   );
-}
+});
