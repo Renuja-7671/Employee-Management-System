@@ -254,7 +254,7 @@ export function NotificationPanel({
   );
 
   return (
-    <Card className="absolute right-2 sm:right-0 top-12 w-[calc(100vw-16px)] sm:w-[450px] shadow-lg z-50 max-h-[80vh] sm:max-h-[600px] flex flex-col">
+    <Card className="fixed left-2 right-2 sm:absolute sm:left-auto sm:right-0 top-12 sm:w-[450px] max-w-full shadow-lg z-50 max-h-[80vh] sm:max-h-[600px] flex flex-col">
       <CardHeader className="p-3 sm:p-4 border-b">
         <div className="flex justify-between items-center">
           <CardTitle className="text-sm sm:text-base">Notifications</CardTitle>
