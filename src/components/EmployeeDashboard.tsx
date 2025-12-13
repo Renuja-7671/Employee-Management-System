@@ -99,6 +99,35 @@ export function EmployeeDashboard({
     };
   }, [user?.id]);
 
+  // Fetch initial notification count on mount
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let isMounted = true;
+
+    const fetchUnreadCount = async () => {
+      try {
+        const response = await fetch(`/api/notifications?userId=${user.id}`);
+
+        if (!isMounted) return;
+
+        if (response.ok) {
+          const data = await response.json();
+          const unread = data.notifications?.filter((n: any) => !n.isRead).length || 0;
+          setUnreadCount(unread);
+        }
+      } catch (error) {
+        console.error("Error fetching notification count:", error);
+      }
+    };
+
+    fetchUnreadCount();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]);
+
   // Refetch function for cover requests (used in callback)
   const refetchPendingCoverCount = async () => {
     if (!user?.id) return;
@@ -114,7 +143,7 @@ export function EmployeeDashboard({
       console.error("Error fetching pending cover count:", error);
     }
   };
-  
+
 
   const getInitials = (name: string) => {
     if (!name) return "??";

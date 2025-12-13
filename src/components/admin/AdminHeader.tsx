@@ -44,6 +44,28 @@ export function AdminHeader() {
     }
   }, [user]);
 
+  // Fetch initial notification count on mount
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      if (!user) return;
+
+      try {
+        const response = await fetch(`/api/notifications?userId=${user.id}`);
+        if (response.ok) {
+          const data = await response.json();
+          const unread = data.notifications?.filter((n: any) => !n.isRead).length || 0;
+          setUnreadCount(unread);
+        }
+      } catch (error) {
+        console.error('Error fetching notification count:', error);
+      }
+    };
+
+    if (user) {
+      fetchUnreadCount();
+    }
+  }, [user]);
+
   const getInitials = (name: string) => {
     if (!name) return '??';
     return name
