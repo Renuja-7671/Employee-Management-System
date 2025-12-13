@@ -254,8 +254,8 @@ export function NotificationPanel({
   );
 
   return (
-    <Card className="fixed left-2 right-2 sm:absolute sm:left-auto sm:right-0 top-12 sm:w-[450px] max-w-full shadow-lg z-50 max-h-[80vh] sm:max-h-[600px] flex flex-col">
-      <CardHeader className="p-3 sm:p-4 border-b">
+    <Card className="fixed left-2 right-2 sm:absolute sm:left-auto sm:right-0 top-12 sm:w-[450px] max-w-full shadow-lg z-50 max-h-[85vh] sm:max-h-[600px] flex flex-col overflow-hidden">
+      <CardHeader className="p-3 sm:p-4 border-b flex-shrink-0">
         <div className="flex justify-between items-center">
           <CardTitle className="text-sm sm:text-base">Notifications</CardTitle>
           <Button variant="ghost" size="icon" onClick={onClose} className="h-7 w-7 sm:h-8 sm:w-8">
@@ -264,7 +264,7 @@ export function NotificationPanel({
         </div>
       </CardHeader>
 
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-y-auto">
         <CardContent className="p-0">
           {loading ? (
             <div className="p-8 text-center text-sm text-gray-500">

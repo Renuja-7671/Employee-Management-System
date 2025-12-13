@@ -272,16 +272,16 @@ export default function LeaveSummary() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Employee Leave Summary</h2>
-          <p className="text-sm text-gray-600 mt-1">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Employee Leave Summary</h2>
+          <p className="text-xs sm:text-sm text-gray-600 mt-1">
             Comprehensive overview of employee leave patterns and statistics
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-2 sm:gap-3 w-full sm:w-auto">
           <Select value={year} onValueChange={setYear}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-28 sm:w-32">
               <SelectValue placeholder="Select year" />
             </SelectTrigger>
             <SelectContent>
@@ -292,9 +292,9 @@ export default function LeaveSummary() {
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={exportToPDF} className="bg-teal-600 hover:bg-teal-700">
-            <Download className="h-4 w-4 mr-2" />
-            Export PDF
+          <Button onClick={exportToPDF} className="bg-teal-600 hover:bg-teal-700 flex-1 sm:flex-none">
+            <Download className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+            <span className="text-xs sm:text-sm">Export PDF</span>
           </Button>
         </div>
       </div>
