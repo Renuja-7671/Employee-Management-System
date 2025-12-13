@@ -242,15 +242,8 @@ export function AdminHeader() {
               </TabsTrigger>
               <TabsTrigger value="duty-reassignment" asChild className="px-2 sm:px-4">
                 <Link href="/admin/duty-reassignment">
-                  <span className="flex items-center gap-1">
-                    <span className="hidden lg:inline">Duty Reassignment</span>
-                    <span className="lg:hidden">Duty</span>
-                    {unreadCount > 0 && (
-                      <Badge className="h-3 w-3 sm:h-4 sm:w-4 flex items-center justify-center p-0 text-[8px] sm:text-[10px] ml-1" variant="destructive">
-                        {unreadCount}
-                      </Badge>
-                    )}
-                  </span>
+                  <span className="hidden lg:inline">Duty Reassignment</span>
+                  <span className="lg:hidden">Duty</span>
                 </Link>
               </TabsTrigger>
               <TabsTrigger value="attendance" asChild className="px-2 sm:px-4">
