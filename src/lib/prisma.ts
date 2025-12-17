@@ -10,18 +10,19 @@ const prismaClientSingleton = () => {
 
   const pool = new Pool({
     connectionString,
-    // Minimal pool config for Vercel serverless
-    max: 1,
+    // Optimized pool config for serverless with multiple concurrent requests
+    max: 10, // Increased from 1 to handle concurrent requests
     min: 0,
-    idleTimeoutMillis: 0,
+    idleTimeoutMillis: 10000, // Close idle connections after 10s
     connectionTimeoutMillis: 10000,
+    allowExitOnIdle: true, // Allow process to exit when idle
   });
 
   const adapter = new PrismaPg(pool);
 
   return new PrismaClient({
     adapter,
-    log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   });
 };
 

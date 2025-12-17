@@ -142,12 +142,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Filter by type if specified (e.g., only MERCANTILE holidays)
+    // Filter by type if specified (e.g., only MERCANTILE holidays and POYA days)
     if (filterTypes && Array.isArray(filterTypes) && filterTypes.length > 0) {
       const filterSet = new Set(filterTypes.map(t => t.toUpperCase()));
       holidays = holidays.filter(h => {
+        const holidayName = (h.summary || h.name || '').toUpperCase();
         const types = h.categories || [h.type || 'PUBLIC'];
-        return types.some(t => filterSet.has(t.toUpperCase()));
+
+        // Check if holiday name contains "POYA" or if categories contain the filter types
+        const nameContainsPoya = holidayName.includes('POYA') && filterSet.has('POYA');
+        const categoriesMatch = types.some(t => filterSet.has(t.toUpperCase()));
+
+        return nameContainsPoya || categoriesMatch;
       });
       console.log(`[HOLIDAYS] Filtered to ${holidays.length} holidays matching types: ${filterTypes.join(', ')}`);
     }
@@ -210,12 +216,26 @@ export async function POST(request: NextRequest) {
           continue;
         }
 
+        // Determine holiday type: "Poya" or "Mercantile"
+        let holidayType = 'Public Holiday';
+        const holidayNameUpper = holidayName.toUpperCase();
+        const categories = holiday.categories || [];
+
+        // Check if it's a Poya day (either in name or categories)
+        if (holidayNameUpper.includes('POYA') || categories.some(c => c.toUpperCase() === 'POYA')) {
+          holidayType = 'Poya';
+        }
+        // Check if it's a Mercantile holiday (in categories)
+        else if (categories.some(c => c.toUpperCase() === 'MERCANTILE')) {
+          holidayType = 'Mercantile';
+        }
+
         // Create the holiday
         await prisma.publicHoliday.create({
           data: {
             name: holidayName,
             date: holidayDate,
-            description: holiday.type || (holiday.categories?.join(', ')) || 'Public Holiday',
+            description: holidayType,
           },
         });
 

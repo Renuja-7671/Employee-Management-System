@@ -6,32 +6,73 @@ const isSunday = (date: Date): boolean => {
   return date.getDay() === 0;
 };
 
-// Helper function to check if a date is a company holiday (Mercantile or Poya)
-const isCompanyHoliday = async (date: Date): Promise<boolean> => {
-  const dateStr = date.toISOString().split('T')[0];
-  const holiday = await prisma.publicHoliday.findFirst({
-    where: {
-      date: new Date(dateStr),
-      OR: [
-        { description: { contains: 'Mercantile', mode: 'insensitive' } },
-        { description: { contains: 'Poya', mode: 'insensitive' } }
-      ]
-    }
-  });
-  return holiday !== null;
-};
-
 // Helper function to calculate working days (excluding Sundays and company holidays)
 const calculateWorkingDays = async (startDate: Date, endDate: Date): Promise<number> => {
+  // Normalize start and end dates to UTC midnight for proper comparison
+  const normalizedStart = new Date(startDate);
+  normalizedStart.setUTCHours(0, 0, 0, 0);
+
+  const normalizedEnd = new Date(endDate);
+  normalizedEnd.setUTCHours(23, 59, 59, 999);
+
+  // Fetch all public holidays (Mercantile and Poya) in the date range at once
+  const holidays = await prisma.publicHoliday.findMany({
+    where: {
+      date: {
+        gte: normalizedStart,
+        lte: normalizedEnd,
+      },
+      OR: [
+        { description: 'Mercantile' },
+        { description: 'Poya' }
+      ]
+    },
+    select: {
+      date: true,
+      name: true,
+    }
+  });
+
+  console.log(`[LEAVE] Fetched ${holidays.length} holidays from ${normalizedStart.toISOString().split('T')[0]} to ${normalizedEnd.toISOString().split('T')[0]}`);
+  // Create a Set of holiday date strings for fast lookup (YYYY-MM-DD format)
+  // Use toISOString to ensure consistent date formatting regardless of timezone
+  const holidayDates = new Set(
+    holidays.map(h => h.date.toISOString().split('T')[0])
+  );
+
+  console.log('[LEAVE] Checking holidays for range:', {
+    start: normalizedStart.toISOString().split('T')[0],
+    end: normalizedEnd.toISOString().split('T')[0],
+    foundHolidays: holidays.length,
+    holidayDates: Array.from(holidayDates),
+    holidayDetails: holidays.map(h => ({
+      name: h.name,
+      date: h.date.toISOString().split('T')[0]
+    }))
+  });
+
   let workingDays = 0;
   const currentDate = new Date(startDate);
 
   while (currentDate <= endDate) {
-    if (!isSunday(currentDate) && !(await isCompanyHoliday(currentDate))) {
+    // Use toISOString to match the format used for holiday dates
+    const currentDateStr = currentDate.toISOString().split('T')[0];
+    const isHoliday = holidayDates.has(currentDateStr);
+
+    console.log(`[LEAVE] Date ${currentDateStr}:`, {
+      isSunday: isSunday(currentDate),
+      isHoliday,
+      counted: !isSunday(currentDate) && !isHoliday
+    });
+
+    // Count only if it's not Sunday and not a company holiday
+    if (!isSunday(currentDate) && !isHoliday) {
       workingDays++;
     }
     currentDate.setDate(currentDate.getDate() + 1);
   }
+
+  console.log(`[LEAVE] Total working days calculated: ${workingDays}`);
 
   return workingDays;
 };
@@ -80,21 +121,137 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get leave balance for the year of the requested leave (not current year)
-    // This ensures employees can only use the balance allocated for that specific year
-    const leaveYear = start.getFullYear();
-    let leaveBalance = await prisma.leaveBalance.findFirst({
+    // Check for overlapping leaves (PENDING_COVER, PENDING_ADMIN, or APPROVED status)
+    const overlappingLeaves = await prisma.leave.findMany({
       where: {
         employeeId: userId,
-        year: leaveYear,
+        status: {
+          in: ['PENDING_COVER', 'PENDING_ADMIN', 'APPROVED'],
+        },
+        OR: [
+          // New leave that starts during an existing leave
+          {
+            startDate: {
+              gte: start,
+              lte: end,
+            },
+          },
+          // New leave that ends during an existing leave
+          {
+            endDate: {
+              gte: start,
+              lte: end,
+            },
+          },
+          // New leave that spans an entire existing leave
+          {
+            AND: [
+              {
+                startDate: {
+                  lte: start,
+                },
+              },
+              {
+                endDate: {
+                  gte: end,
+                },
+              },
+            ],
+          },
+          // Existing leave that starts during the new leave
+          {
+            AND: [
+              {
+                startDate: {
+                  gte: start,
+                  lte: end,
+                },
+              },
+            ],
+          },
+          // Existing leave that ends during the new leave
+          {
+            AND: [
+              {
+                endDate: {
+                  gte: start,
+                  lte: end,
+                },
+              },
+            ],
+          },
+        ],
+      },
+      select: {
+        id: true,
+        leaveType: true,
+        startDate: true,
+        endDate: true,
+        status: true,
+        totalDays: true,
       },
     });
 
-    // Create leave balance if it doesn't exist for the requested year
+    if (overlappingLeaves.length > 0) {
+      const overlappingLeave = overlappingLeaves[0];
+      const formatDate = (date: Date) => {
+        return new Date(date).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
+        });
+      };
+
+      console.log('[LEAVE] Overlapping leave detected:', {
+        requestedStart: start.toISOString().split('T')[0],
+        requestedEnd: end.toISOString().split('T')[0],
+        existingLeave: {
+          id: overlappingLeave.id,
+          type: overlappingLeave.leaveType,
+          start: overlappingLeave.startDate,
+          end: overlappingLeave.endDate,
+          status: overlappingLeave.status,
+        },
+      });
+
+      return NextResponse.json(
+        {
+          error: `You already have a ${overlappingLeave.status.toLowerCase()} ${overlappingLeave.leaveType.toLowerCase()} leave from ${formatDate(overlappingLeave.startDate)} to ${formatDate(overlappingLeave.endDate)}. You cannot apply for overlapping leaves.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Get or create leave balance for the employee
+    // Note: Due to unique constraint on employeeId, each employee has one balance record
+    // The year field tracks the balance year, but we can only have one record per employee
+    const leaveYear = start.getFullYear();
+    let leaveBalance = await prisma.leaveBalance.findUnique({
+      where: {
+        employeeId: userId,
+      },
+    });
+
+    // Create or update leave balance if it doesn't exist or if it's for a different year
     if (!leaveBalance) {
       leaveBalance = await prisma.leaveBalance.create({
         data: {
           employeeId: userId,
+          year: leaveYear,
+          annual: 14,
+          casual: 7,
+          medical: 7,
+          official: 0,
+        },
+      });
+    } else if (leaveBalance.year !== leaveYear) {
+      // If the balance is for a different year, update it to the new year with fresh balance
+      // This resets the balance when applying for leave in a new year
+      leaveBalance = await prisma.leaveBalance.update({
+        where: {
+          employeeId: userId,
+        },
+        data: {
           year: leaveYear,
           annual: 14,
           casual: 7,

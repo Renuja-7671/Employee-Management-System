@@ -46,11 +46,13 @@ export const ApplyLeave = memo(function ApplyLeave({ user, onSuccess }: ApplyLea
     const fetchInitialData = async () => {
       try {
         const currentYear = new Date().getFullYear();
+        const nextYear = currentYear + 1;
 
-        // Fetch both in parallel for better performance
-        const [statsResponse, holidaysResponse] = await Promise.all([
+        // Fetch stats and holidays for both current and next year in parallel
+        const [statsResponse, currentYearHolidaysResponse, nextYearHolidaysResponse] = await Promise.all([
           fetch(`/api/employees/${user.id}/stats`, { cache: 'no-store' }),
           fetch(`/api/holidays?year=${currentYear}`, { cache: 'no-store' }),
+          fetch(`/api/holidays?year=${nextYear}`, { cache: 'no-store' }),
         ]);
 
         if (statsResponse.ok) {
@@ -59,11 +61,28 @@ export const ApplyLeave = memo(function ApplyLeave({ user, onSuccess }: ApplyLea
           setLeaveCounts(statsData.counts || { medicalLeaveTaken: 0, officialLeaveTaken: 0 });
         }
 
-        if (holidaysResponse.ok) {
-          const holidaysData = await holidaysResponse.json();
-          const holidayDates = holidaysData.holidays.map((h: any) => new Date(h.date));
-          setPublicHolidays(holidayDates);
+        // Combine holidays from both years
+        const allHolidays: Date[] = [];
+
+        if (currentYearHolidaysResponse.ok) {
+          const currentYearData = await currentYearHolidaysResponse.json();
+          const currentYearDates = currentYearData.holidays.map((h: any) => new Date(h.date));
+          allHolidays.push(...currentYearDates);
         }
+
+        if (nextYearHolidaysResponse.ok) {
+          const nextYearData = await nextYearHolidaysResponse.json();
+          const nextYearDates = nextYearData.holidays.map((h: any) => new Date(h.date));
+          allHolidays.push(...nextYearDates);
+        }
+
+        setPublicHolidays(allHolidays);
+        console.log('[APPLY_LEAVE] Loaded holidays:', {
+          currentYear,
+          nextYear,
+          totalHolidays: allHolidays.length,
+          years: [currentYear, nextYear]
+        });
       } catch (error) {
         console.error('Error fetching initial data:', error);
         toast.error('Error loading data');

@@ -81,10 +81,80 @@ export async function GET(request: NextRequest) {
       employeesOnLeave.map((leave) => leave.employeeId)
     );
 
-    // Filter out employees who are on leave
-    const availableEmployees = allEmployees.filter(
-      (employee) => !employeeIdsOnLeave.has(employee.id)
+    // Get employees who have pending cover requests that overlap with the requested period
+    const employeesWithPendingCoverRequests = await prisma.coverRequest.findMany({
+      where: {
+        status: 'PENDING',
+        leave: {
+          OR: [
+            // Leave that starts during the requested period
+            {
+              startDate: {
+                gte: new Date(startDate),
+                lte: new Date(endDate),
+              },
+            },
+            // Leave that ends during the requested period
+            {
+              endDate: {
+                gte: new Date(startDate),
+                lte: new Date(endDate),
+              },
+            },
+            // Leave that spans the entire requested period
+            {
+              AND: [
+                {
+                  startDate: {
+                    lte: new Date(startDate),
+                  },
+                },
+                {
+                  endDate: {
+                    gte: new Date(endDate),
+                  },
+                },
+              ],
+            },
+          ],
+        },
+      },
+      select: {
+        coverEmployeeId: true,
+        leave: {
+          select: {
+            startDate: true,
+            endDate: true,
+          },
+        },
+      },
+    });
+
+    // Get IDs of employees with pending cover requests during this period
+    const employeeIdsWithPendingCoverRequests = new Set(
+      employeesWithPendingCoverRequests.map((request) => request.coverEmployeeId)
     );
+
+    console.log('[AVAILABLE_EMPLOYEES] Filtering employees:', {
+      total: allEmployees.length,
+      requestedPeriod: { startDate, endDate },
+      onLeave: employeeIdsOnLeave.size,
+      withPendingCoverRequests: employeeIdsWithPendingCoverRequests.size,
+      pendingCoverDetails: employeesWithPendingCoverRequests.map(r => ({
+        coverEmployeeId: r.coverEmployeeId,
+        leaveStart: r.leave.startDate,
+        leaveEnd: r.leave.endDate,
+      })),
+    });
+
+    // Filter out employees who are on leave OR have pending cover requests during this period
+    const availableEmployees = allEmployees.filter(
+      (employee) =>
+        !employeeIdsOnLeave.has(employee.id) &&
+        !employeeIdsWithPendingCoverRequests.has(employee.id)
+    );
+
+    console.log('[AVAILABLE_EMPLOYEES] Available employees after filtering:', availableEmployees.length);
 
     return NextResponse.json({ employees: availableEmployees });
   } catch (error) {

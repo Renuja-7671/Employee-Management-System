@@ -25,9 +25,8 @@ export async function GET(request: NextRequest) {
     // Only fetch company holidays (Mercantile and Poya) unless showAll is true
     if (!showAll) {
       where.OR = [
-        { description: { contains: 'Mercantile', mode: 'insensitive' } },
-        { description: { contains: 'Poya', mode: 'insensitive' } },
-        { name: { contains: 'Poya', mode: 'insensitive' } }
+        { description: 'Mercantile' },
+        { description: 'Poya' }
       ];
     }
 
