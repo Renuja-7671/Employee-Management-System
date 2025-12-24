@@ -386,7 +386,9 @@ export function EmployeeProfiles() {
     // Prepare table data
     const tableData = activeEmployees.map(emp => [
       emp.employeeId,
-      emp.nameWithInitials || emp.name,
+      emp.name,
+      emp.nameWithInitials || 'N/A',
+      emp.nic || 'N/A',
       emp.email,
       emp.phone || 'N/A',
       emp.position,
@@ -398,34 +400,36 @@ export function EmployeeProfiles() {
     // Add employee details table
     autoTable(doc, {
       startY: 65,
-      head: [['EMP ID', 'Name', 'Email', 'Phone', 'Position', 'Department', 'Birthday', 'Joined']],
+      head: [['EMP ID', 'Full Name', 'Name w/ Initials', 'NIC', 'Email', 'Phone', 'Position', 'Department', 'Birthday', 'Joined']],
       body: tableData,
       theme: 'grid',
       headStyles: {
         fillColor: [59, 130, 246],
         textColor: 255,
-        fontSize: 9,
+        fontSize: 8,
         fontStyle: 'bold',
       },
       styles: {
-        fontSize: 8,
-        cellPadding: 2,
+        fontSize: 7,
+        cellPadding: 1.5,
         overflow: 'linebreak',
       },
       columnStyles: {
-        0: { cellWidth: 20 },  // EMP ID
-        1: { cellWidth: 35 },  // Name
-        2: { cellWidth: 45 },  // Email
-        3: { cellWidth: 25 },  // Phone
-        4: { cellWidth: 30 },  // Position
-        5: { cellWidth: 25 },  // Department
-        6: { cellWidth: 25 },  // Birthday
-        7: { cellWidth: 25 },  // Joined
+        0: { cellWidth: 18 },  // EMP ID
+        1: { cellWidth: 30 },  // Full Name
+        2: { cellWidth: 25 },  // Name with Initials
+        3: { cellWidth: 24 },  // NIC
+        4: { cellWidth: 38 },  // Email
+        5: { cellWidth: 22 },  // Phone
+        6: { cellWidth: 25 },  // Position
+        7: { cellWidth: 22 },  // Department
+        8: { cellWidth: 22 },  // Birthday
+        9: { cellWidth: 22 },  // Joined
       },
       alternateRowStyles: {
         fillColor: [245, 247, 250],
       },
-      margin: { top: 65, left: 10, right: 10 },
+      margin: { top: 65, left: 5, right: 5 },
     });
 
     // Add footer with additional information
@@ -434,9 +438,9 @@ export function EmployeeProfiles() {
     doc.setTextColor(100, 100, 100);
     doc.text('Notes:', 14, finalY + 15);
     doc.setFontSize(9);
-    doc.text('• This report contains details of all active employees in the system', 14, finalY + 22);
-    doc.text('• For privacy reasons, sensitive information like NIC and address are not included', 14, finalY + 28);
-    doc.text('• For detailed employee information, please use the employee management portal', 14, finalY + 34);
+    doc.text('• This report contains comprehensive details of all active employees in the system', 14, finalY + 22);
+    doc.text('• Includes full name, name with initials, NIC, contact details, and employment information', 14, finalY + 28);
+    doc.text('• For sensitive information like residential address, please use the employee management portal', 14, finalY + 34);
 
     // Add page numbers if multiple pages
     const pageCount = (doc as any).internal.getNumberOfPages();
