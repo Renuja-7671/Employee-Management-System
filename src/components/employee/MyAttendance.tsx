@@ -17,6 +17,7 @@ export const MyAttendance = memo(function MyAttendance({ user }: MyAttendancePro
   const [attendance, setAttendance] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterMonth, setFilterMonth] = useState(new Date().toISOString().substring(0, 7));
+  const [publicHolidays, setPublicHolidays] = useState<any[]>([]);
 
   // Fetch attendance data for selected month only
   const fetchAttendance = useCallback(async (month: string) => {
@@ -40,6 +41,37 @@ export const MyAttendance = memo(function MyAttendance({ user }: MyAttendancePro
   useEffect(() => {
     fetchAttendance(filterMonth);
   }, [filterMonth, fetchAttendance]);
+
+  // Fetch holidays on component mount
+  useEffect(() => {
+    const fetchHolidays = async () => {
+      try {
+        const currentYear = new Date().getFullYear();
+        const nextYear = currentYear + 1;
+
+        const [currentYearResponse, nextYearResponse] = await Promise.all([
+          fetch(`/api/holidays?year=${currentYear}`),
+          fetch(`/api/holidays?year=${nextYear}`),
+        ]);
+
+        const allHolidays: any[] = [];
+        if (currentYearResponse.ok) {
+          const currentYearData = await currentYearResponse.json();
+          allHolidays.push(...currentYearData.holidays);
+        }
+        if (nextYearResponse.ok) {
+          const nextYearData = await nextYearResponse.json();
+          allHolidays.push(...nextYearData.holidays);
+        }
+
+        setPublicHolidays(allHolidays);
+      } catch (error) {
+        console.error('Error fetching holidays:', error);
+      }
+    };
+
+    fetchHolidays();
+  }, []);
 
   // Handle month change
   const handleMonthChange = useCallback((newMonth: string) => {
@@ -82,11 +114,28 @@ export const MyAttendance = memo(function MyAttendance({ user }: MyAttendancePro
     return `${h}h ${m}m`;
   };
 
-  const calculateLateMinutes = (checkIn: string | Date | null | undefined): number => {
+  const calculateLateMinutes = (checkIn: string | Date | null | undefined, attendanceDate: string | Date, isWeekend?: boolean): number => {
     if (!checkIn) return 0;
 
     try {
       const checkInDate = typeof checkIn === 'string' ? new Date(checkIn) : checkIn;
+      const attDate = new Date(attendanceDate);
+
+      // Check if it's a Sunday or weekend
+      const isSunday = attDate.getDay() === 0 || isWeekend;
+
+      // Check if it's a company holiday (Poya or Mercantile)
+      const dateStr = attDate.toISOString().split('T')[0];
+      const isHoliday = publicHolidays.some(holiday => {
+        const holidayStr = new Date(holiday.date).toISOString().split('T')[0];
+        return holidayStr === dateStr;
+      });
+
+      // Don't calculate late minutes for Sundays or holidays
+      if (isSunday || isHoliday) {
+        return 0;
+      }
+
       const checkInHour = checkInDate.getHours();
       const checkInMinute = checkInDate.getMinutes();
 
@@ -111,9 +160,9 @@ export const MyAttendance = memo(function MyAttendance({ user }: MyAttendancePro
       totalDays: attendance.length,
       totalHours,
       avgHours: attendance.length > 0 ? totalHours / attendance.length : 0,
-      totalLateMinutes: attendance.reduce((sum, a) => sum + calculateLateMinutes(a.checkIn), 0),
+      totalLateMinutes: attendance.reduce((sum, a) => sum + calculateLateMinutes(a.checkIn, a.date, a.isWeekend), 0),
     };
-  }, [attendance]);
+  }, [attendance, publicHolidays]);
 
   // Memoize chart data (last 7 days)
   const chartData = useMemo(() =>
@@ -132,7 +181,7 @@ export const MyAttendance = memo(function MyAttendance({ user }: MyAttendancePro
       new Date(att.date).toLocaleDateString(),
       formatTime(att.checkIn),
       formatTime(att.checkOut),
-      `${calculateLateMinutes(att.checkIn)} min`,
+      `${calculateLateMinutes(att.checkIn, att.date, att.isWeekend)} min`,
       formatHours(calculateHours(att.checkIn, att.checkOut)),
     ]);
 
@@ -278,7 +327,7 @@ export const MyAttendance = memo(function MyAttendance({ user }: MyAttendancePro
                 </TableRow>
               ) : (
                 attendance.map((att: any) => {
-                  const lateMinutes = calculateLateMinutes(att.checkIn);
+                  const lateMinutes = calculateLateMinutes(att.checkIn, att.date, att.isWeekend);
                   return (
                     <TableRow key={att.id}>
                       <TableCell>{new Date(att.date).toLocaleDateString()}</TableCell>

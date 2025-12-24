@@ -159,11 +159,32 @@ async function processAttendanceRecord(
     },
   });
 
+  // Check if this is a Sunday or company holiday (Poya/Mercantile)
+  const isSunday = attendanceDate.getDay() === 0;
+
+  // Check if this is a company holiday
+  const holiday = await prisma.publicHoliday.findFirst({
+    where: {
+      date: attendanceDate,
+      OR: [
+        { description: 'Poya' },
+        { description: 'Mercantile' }
+      ]
+    }
+  });
+  const isHoliday = !!holiday;
+
   // Determine attendance status based on check-in time
   // Assuming work starts at 8:30 AM
+  // Don't mark as late if it's Sunday or holiday (employee came for urgent work)
   const checkInHour = timestamp.getHours();
   const checkInMinute = timestamp.getMinutes();
-  const isLate = checkInHour > 8 || (checkInHour === 8 && checkInMinute > 30);
+  const isActuallyLate = checkInHour > 8 || (checkInHour === 8 && checkInMinute > 30);
+  const isLate = isActuallyLate && !isSunday && !isHoliday;
+
+  if (isSunday || isHoliday) {
+    console.log(`[ATTENDANCE] ${isSunday ? 'Sunday' : 'Holiday'} attendance for ${employeeId} on ${attendanceDate.toISOString().split('T')[0]} - not marking as late`);
+  }
 
   if (!existing) {
     // First scan of the day - this is check-in
@@ -173,6 +194,7 @@ async function processAttendanceRecord(
         date: attendanceDate,
         checkIn: timestamp,
         status: isLate ? 'LATE' : 'PRESENT',
+        isWeekend: isSunday,
         deviceId,
         verifyMode: 1, // Fingerprint
         source: 'BIOMETRIC',
@@ -187,6 +209,7 @@ async function processAttendanceRecord(
       : null;
 
     // Determine final status based on work hours
+    // Don't mark as late if it's Sunday or holiday
     let status = existing.status;
     if (workHours && workHours < 4) {
       status = 'HALF_DAY';

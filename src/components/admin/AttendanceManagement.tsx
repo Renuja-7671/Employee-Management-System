@@ -184,11 +184,29 @@ export function AttendanceManagement() {
     }
   };
 
-  const calculateLateMinutes = (checkIn: string | Date | null | undefined): number => {
+  const calculateLateMinutes = (checkIn: string | Date | null | undefined, attendanceDate: string | Date, isWeekend?: boolean): number => {
     if (!checkIn) return 0;
 
     try {
       const checkInDate = typeof checkIn === 'string' ? new Date(checkIn) : checkIn;
+      const attDate = new Date(attendanceDate);
+
+      // Check if it's a Sunday
+      const isSunday = attDate.getDay() === 0 || isWeekend;
+
+      // Check if it's a company holiday (Poya or Mercantile)
+      const dateStr = attDate.toISOString().split('T')[0];
+      const isHoliday = publicHolidays.some(holiday => {
+        const holidayStr = new Date(holiday.date).toISOString().split('T')[0];
+        return holidayStr === dateStr;
+      });
+
+      // Don't calculate late minutes for Sundays or holidays
+      // (employee came for urgent work, company is closed)
+      if (isSunday || isHoliday) {
+        return 0;
+      }
+
       const checkInHour = checkInDate.getHours();
       const checkInMinute = checkInDate.getMinutes();
 
@@ -254,7 +272,7 @@ export function AttendanceManagement() {
         att.date,
         formatTime(att.checkIn),
         formatTime(att.checkOut),
-        `${calculateLateMinutes(att.checkIn)} min`,
+        `${calculateLateMinutes(att.checkIn, att.date, att.isWeekend)} min`,
         calculateHours(att.checkIn, att.checkOut),
       ];
     });
@@ -368,7 +386,7 @@ export function AttendanceManagement() {
 
       const stats = employeeStats.get(empId)!;
       stats.workedDays += 1;
-      stats.totalLateMinutes += calculateLateMinutes(att.checkIn);
+      stats.totalLateMinutes += calculateLateMinutes(att.checkIn, att.date, att.isWeekend);
     });
 
     // Calculate approved leave days for each employee in the date range
@@ -760,7 +778,7 @@ export function AttendanceManagement() {
                   </TableRow>
                 ) : (
                   filteredAttendance.map((att) => {
-                    const lateMinutes = calculateLateMinutes(att.checkIn);
+                    const lateMinutes = calculateLateMinutes(att.checkIn, att.date, att.isWeekend);
                     return (
                       <TableRow key={att.id}>
                         <TableCell className="font-medium">

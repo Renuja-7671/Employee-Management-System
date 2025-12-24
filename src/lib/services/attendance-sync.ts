@@ -267,10 +267,30 @@ export class AttendanceSyncService {
         const checkInTime = new Date(checkIn);
         const workHours = updateData.workHours;
 
+        // Check if this is a Sunday or company holiday (Poya/Mercantile)
+        const isSunday = dateOnly.getDay() === 0;
+
+        // Check if this is a company holiday
+        const holiday = await prisma.publicHoliday.findFirst({
+          where: {
+            date: dateOnly,
+            OR: [
+              { description: 'Poya' },
+              { description: 'Mercantile' }
+            ]
+          }
+        });
+        const isHoliday = !!holiday;
+
         // Assuming standard work time is 8:30 AM and half-day is less than 4 hours
         const checkInHour = checkInTime.getHours() + checkInTime.getMinutes() / 60;
 
-        if (checkInHour > 8.5) {
+        // Don't mark as late if it's Sunday or a holiday (employee came for urgent work)
+        if (isSunday || isHoliday) {
+          updateData.status = 'PRESENT'; // Always PRESENT on holidays/Sundays
+          updateData.isWeekend = isSunday;
+          console.log(`[ATTENDANCE] ${isSunday ? 'Sunday' : 'Holiday'} attendance detected for ${employeeId} on ${dateOnly.toISOString().split('T')[0]} - not marking as late`);
+        } else if (checkInHour > 8.5) {
           updateData.status = 'LATE';
         } else if (workHours < 4) {
           updateData.status = 'HALF_DAY';
