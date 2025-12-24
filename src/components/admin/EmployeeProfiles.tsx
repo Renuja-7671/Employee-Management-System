@@ -38,11 +38,22 @@ import {
   Upload,
   Camera,
   Shield,
+  FileText,
+  Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getEmployees, Employee as EmployeeAPI } from '@/lib/api/employees';
 import { Textarea } from '@/components/ui/textarea';
 import { BirthdayEmails } from './BirthdayEmails';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+// Extend jsPDF type to include autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: typeof autoTable;
+  }
+}
 
 interface Employee extends EmployeeAPI {
   name: string;
@@ -341,6 +352,111 @@ export function EmployeeProfiles() {
     }
   };
 
+  const exportActiveEmployeesPDF = () => {
+    const activeEmployees = employees.filter(emp => emp.isActive);
+
+    if (activeEmployees.length === 0) {
+      toast.error('No active employees to export');
+      return;
+    }
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+
+    // Add logo
+    const logoImg = new Image();
+    logoImg.src = '/images/logo-dark.png';
+
+    try {
+      doc.addImage(logoImg, 'PNG', pageWidth / 2 - 25, 10, 50, 20);
+    } catch (error) {
+      console.error('Error adding logo to PDF:', error);
+    }
+
+    // Add report title
+    doc.setFontSize(18);
+    doc.setTextColor(59, 130, 246);
+    doc.text('Active Employees Report', pageWidth / 2, 42, { align: 'center' });
+
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, pageWidth / 2, 50, { align: 'center' });
+    doc.text(`Total Active Employees: ${activeEmployees.length}`, pageWidth / 2, 57, { align: 'center' });
+
+    // Prepare table data
+    const tableData = activeEmployees.map(emp => [
+      emp.employeeId,
+      emp.nameWithInitials || emp.name,
+      emp.email,
+      emp.phone || 'N/A',
+      emp.position,
+      emp.department,
+      emp.birthday ? new Date(emp.birthday).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A',
+      new Date(emp.dateOfJoining).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    ]);
+
+    // Add employee details table
+    autoTable(doc, {
+      startY: 65,
+      head: [['EMP ID', 'Name', 'Email', 'Phone', 'Position', 'Department', 'Birthday', 'Joined']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: {
+        fillColor: [59, 130, 246],
+        textColor: 255,
+        fontSize: 9,
+        fontStyle: 'bold',
+      },
+      styles: {
+        fontSize: 8,
+        cellPadding: 2,
+        overflow: 'linebreak',
+      },
+      columnStyles: {
+        0: { cellWidth: 20 },  // EMP ID
+        1: { cellWidth: 35 },  // Name
+        2: { cellWidth: 45 },  // Email
+        3: { cellWidth: 25 },  // Phone
+        4: { cellWidth: 30 },  // Position
+        5: { cellWidth: 25 },  // Department
+        6: { cellWidth: 25 },  // Birthday
+        7: { cellWidth: 25 },  // Joined
+      },
+      alternateRowStyles: {
+        fillColor: [245, 247, 250],
+      },
+      margin: { top: 65, left: 10, right: 10 },
+    });
+
+    // Add footer with additional information
+    const finalY = (doc as any).lastAutoTable.finalY || 65;
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Notes:', 14, finalY + 15);
+    doc.setFontSize(9);
+    doc.text('• This report contains details of all active employees in the system', 14, finalY + 22);
+    doc.text('• For privacy reasons, sensitive information like NIC and address are not included', 14, finalY + 28);
+    doc.text('• For detailed employee information, please use the employee management portal', 14, finalY + 34);
+
+    // Add page numbers if multiple pages
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    doc.setFontSize(9);
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setTextColor(150, 150, 150);
+      doc.text(
+        `Page ${i} of ${pageCount}`,
+        pageWidth / 2,
+        doc.internal.pageSize.height - 10,
+        { align: 'center' }
+      );
+    }
+
+    // Save PDF
+    doc.save(`Active_Employees_Report_${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success('Active employees report generated successfully');
+  };
+
   // Memoize filtered employees to avoid recalculating on every render
   const filteredEmployees = useMemo(() => {
     const query = searchQuery.toLowerCase();
@@ -436,8 +552,8 @@ export function EmployeeProfiles() {
         <CardHeader>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <CardTitle>Employee Profiles</CardTitle>
-            <div className="w-full sm:w-auto">
-              <div className="relative">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <div className="relative flex-1 sm:flex-initial">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search employees..."
@@ -446,6 +562,14 @@ export function EmployeeProfiles() {
                   className="pl-9 w-full sm:w-[300px]"
                 />
               </div>
+              <Button
+                onClick={exportActiveEmployeesPDF}
+                variant="outline"
+                className="w-full sm:w-auto"
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Export Active Employees
+              </Button>
             </div>
           </div>
         </CardHeader>

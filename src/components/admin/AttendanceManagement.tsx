@@ -402,8 +402,8 @@ export function AttendanceManagement() {
       employeeLeaves.forEach(leave => {
         const leaveStart = new Date(Math.max(new Date(leave.startDate).getTime(), startDateObj.getTime()));
         const leaveEnd = new Date(Math.min(new Date(leave.endDate).getTime(), endDateObj.getTime()));
-        const daysDiff = Math.ceil((leaveEnd.getTime() - leaveStart.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-        approvedDays += daysDiff;
+        // Calculate working days excluding Sundays and holidays
+        approvedDays += calculateWorkingDays(leaveStart, leaveEnd);
       });
 
       if (!employeeStats.has(emp.id)) {
@@ -448,15 +448,15 @@ export function AttendanceManagement() {
     doc.setTextColor(59, 130, 246);
     doc.text('Summary Statistics', 14, 68);
 
-    const totalEmployees = employeeStats.size;
-    const totalWorkedDays = Array.from(employeeStats.values()).reduce((sum, emp) => sum + emp.workedDays, 0);
+    const totalActiveEmployees = employees.filter(emp => emp.isActive).length;
+    const totalInactiveEmployees = employees.filter(emp => !emp.isActive).length;
     const totalLeaveDays = Array.from(employeeStats.values()).reduce((sum, emp) => sum + emp.approvedLeaveDays, 0);
 
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
-    doc.text(`Total Employees: ${totalEmployees}`, 14, 76);
-    doc.text(`Working Days in Period: ${totalWorkingDays} (excluding Sundays & holidays)`, 14, 82);
-    doc.text(`Total Worked Days: ${totalWorkedDays}`, 14, 88);
+    doc.text(`Total Active Employees: ${totalActiveEmployees}`, 14, 76);
+    doc.text(`Total Inactive Employees: ${totalInactiveEmployees}`, 14, 82);
+    doc.text(`Working Days in Period: ${totalWorkingDays} (excluding Sundays & holidays)`, 14, 88);
     doc.text(`Total Approved Leave Days: ${totalLeaveDays}`, 14, 94);
 
     // Add employee details table
@@ -470,7 +470,7 @@ export function AttendanceManagement() {
       emp.workedDays.toString(),
       emp.approvedLeaveDays.toString(),
       emp.totalLateMinutes.toString(),
-      emp.totalLateMinutes > 60 ? `⚠️ ${emp.totalLateMinutes - 60}` : '✓',
+      emp.totalLateMinutes > 60 ? `EXCEEDED (${emp.totalLateMinutes - 60} min)` : 'WITHIN LIMIT',
     ]);
 
     autoTable(doc, {
@@ -497,9 +497,10 @@ export function AttendanceManagement() {
     doc.text('Notes:', 14, finalY + 15);
     doc.setFontSize(9);
     doc.text('• Late minutes are calculated based on 8:30 AM start time', 14, finalY + 22);
-    doc.text('• Each employee has 60 late minutes allowance per month', 14, finalY + 28);
-    doc.text('• ⚠️ indicates employee exceeded late minutes allowance', 14, finalY + 34);
-    doc.text('• ✓ indicates employee within late minutes allowance', 14, finalY + 40);
+    doc.text('• Sundays and company holidays (Poya & Mercantile) are excluded from late calculations', 14, finalY + 28);
+    doc.text('• Each employee has 60 late minutes allowance per month', 14, finalY + 34);
+    doc.text('• EXCEEDED indicates employee exceeded late minutes allowance', 14, finalY + 40);
+    doc.text('• WITHIN LIMIT indicates employee within late minutes allowance', 14, finalY + 46);
 
     // Save PDF
     doc.save(`Attendance_Report_${startDate}_to_${endDate}.pdf`);
