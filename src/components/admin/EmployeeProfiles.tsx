@@ -360,15 +360,20 @@ export function EmployeeProfiles() {
       return;
     }
 
-    const doc = new jsPDF();
+    // Use landscape orientation for wider table
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
     const pageWidth = doc.internal.pageSize.width;
 
-    // Add logo
+    // Add logo with better proportions (taller)
     const logoImg = new Image();
     logoImg.src = '/images/logo-dark.png';
 
     try {
-      doc.addImage(logoImg, 'PNG', pageWidth / 2 - 25, 10, 50, 20);
+      doc.addImage(logoImg, 'PNG', pageWidth / 2 - 25, 8, 50, 25);
     } catch (error) {
       console.error('Error adding logo to PDF:', error);
     }
@@ -376,14 +381,14 @@ export function EmployeeProfiles() {
     // Add report title
     doc.setFontSize(18);
     doc.setTextColor(59, 130, 246);
-    doc.text('Active Employees Report', pageWidth / 2, 42, { align: 'center' });
+    doc.text('Active Employees Report', pageWidth / 2, 40, { align: 'center' });
 
-    doc.setFontSize(12);
+    doc.setFontSize(11);
     doc.setTextColor(0, 0, 0);
-    doc.text(`Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, pageWidth / 2, 50, { align: 'center' });
-    doc.text(`Total Active Employees: ${activeEmployees.length}`, pageWidth / 2, 57, { align: 'center' });
+    doc.text(`Generated: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`, pageWidth / 2, 48, { align: 'center' });
+    doc.text(`Total Active Employees: ${activeEmployees.length}`, pageWidth / 2, 54, { align: 'center' });
 
-    // Prepare table data
+    // Prepare table data with all employee attributes
     const tableData = activeEmployees.map(emp => [
       emp.employeeId,
       emp.name,
@@ -393,54 +398,60 @@ export function EmployeeProfiles() {
       emp.phone || 'N/A',
       emp.position,
       emp.department,
+      emp.address || 'N/A',
+      emp.emergencyContact || 'N/A',
       emp.birthday ? new Date(emp.birthday).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A',
       new Date(emp.dateOfJoining).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     ]);
 
-    // Add employee details table
+    // Add employee details table - optimized for landscape A4 (297mm width)
     autoTable(doc, {
-      startY: 65,
-      head: [['EMP ID', 'Full Name', 'Name w/ Initials', 'NIC', 'Email', 'Phone', 'Position', 'Department', 'Birthday', 'Joined']],
+      startY: 60,
+      head: [['EMP ID', 'Full Name', 'Name w/ Initials', 'NIC', 'Email', 'Phone', 'Position', 'Department', 'Address', 'Emergency Contact', 'Birthday', 'Joined']],
       body: tableData,
       theme: 'grid',
       headStyles: {
         fillColor: [59, 130, 246],
         textColor: 255,
-        fontSize: 8,
+        fontSize: 7,
         fontStyle: 'bold',
+        halign: 'center',
       },
       styles: {
-        fontSize: 7,
+        fontSize: 6.5,
         cellPadding: 1.5,
         overflow: 'linebreak',
+        valign: 'middle',
       },
       columnStyles: {
-        0: { cellWidth: 18 },  // EMP ID
-        1: { cellWidth: 30 },  // Full Name
-        2: { cellWidth: 25 },  // Name with Initials
-        3: { cellWidth: 24 },  // NIC
-        4: { cellWidth: 38 },  // Email
-        5: { cellWidth: 22 },  // Phone
-        6: { cellWidth: 25 },  // Position
-        7: { cellWidth: 22 },  // Department
-        8: { cellWidth: 22 },  // Birthday
-        9: { cellWidth: 22 },  // Joined
+        0: { cellWidth: 16, halign: 'center' },   // EMP ID
+        1: { cellWidth: 28 },                      // Full Name
+        2: { cellWidth: 22 },                      // Name with Initials
+        3: { cellWidth: 20, halign: 'center' },   // NIC
+        4: { cellWidth: 35 },                      // Email
+        5: { cellWidth: 20, halign: 'center' },   // Phone
+        6: { cellWidth: 24 },                      // Position
+        7: { cellWidth: 20 },                      // Department
+        8: { cellWidth: 40 },                      // Address
+        9: { cellWidth: 22 },                      // Emergency Contact
+        10: { cellWidth: 20, halign: 'center' },  // Birthday
+        11: { cellWidth: 20, halign: 'center' },  // Joined
       },
       alternateRowStyles: {
         fillColor: [245, 247, 250],
       },
-      margin: { top: 65, left: 5, right: 5 },
+      margin: { top: 60, left: 5, right: 5 },
     });
 
     // Add footer with additional information
     const finalY = (doc as any).lastAutoTable.finalY || 65;
-    doc.setFontSize(10);
-    doc.setTextColor(100, 100, 100);
-    doc.text('Notes:', 14, finalY + 15);
     doc.setFontSize(9);
-    doc.text('• This report contains comprehensive details of all active employees in the system', 14, finalY + 22);
-    doc.text('• Includes full name, name with initials, NIC, contact details, and employment information', 14, finalY + 28);
-    doc.text('• For sensitive information like residential address, please use the employee management portal', 14, finalY + 34);
+    doc.setTextColor(100, 100, 100);
+    doc.text('Notes:', 14, finalY + 10);
+    doc.setFontSize(8);
+    doc.text('• This report contains comprehensive details of all active employees including personal, contact, and employment information', 14, finalY + 16);
+    doc.text('• Includes full name, name with initials, NIC, email, phone, position, department, residential address, emergency contact, birthday, and joining date', 14, finalY + 21);
+    doc.text('• This is a confidential document - please handle with care and follow data protection guidelines', 14, finalY + 26);
 
     // Add page numbers if multiple pages
     const pageCount = (doc as any).internal.getNumberOfPages();
