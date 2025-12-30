@@ -61,7 +61,8 @@ export function EmployeeManagement() {
   const [profilePicture, setProfilePicture] = useState<File | null>(null);
   const [profilePicturePreview, setProfilePicturePreview] = useState<string>('');
   const [formData, setFormData] = useState({
-    name: '',
+    callingName: '',
+    fullName: '',
     nameWithInitials: '',
     nic: '',
     email: '',
@@ -150,11 +151,6 @@ export function EmployeeManagement() {
     setSubmitting(true);
 
     try {
-      // Split name into firstName and lastName
-      const nameParts = formData.name.trim().split(' ');
-      const firstName = nameParts[0] || '';
-      const lastName = nameParts.slice(1).join(' ') || nameParts[0] || '';
-
       // Handle profile picture upload if present
       let profilePicturePath = null;
       if (profilePicture) {
@@ -182,9 +178,9 @@ export function EmployeeManagement() {
 
       // Prepare employee data for API
       const employeeData = {
-        firstName,
-        lastName,
-        nameWithInitials: formData.nameWithInitials || null,
+        callingName: formData.callingName,
+        fullName: formData.fullName,
+        nameWithInitials: formData.nameWithInitials,
         nic: formData.nic || null,
         email: formData.email,
         password: formData.password,
@@ -205,7 +201,8 @@ export function EmployeeManagement() {
         toast.success('Employee created successfully');
         setShowAddDialog(false);
         setFormData({
-          name: '',
+          callingName: '',
+          fullName: '',
           nameWithInitials: '',
           nic: '',
           email: '',
@@ -400,15 +397,34 @@ export function EmployeeManagement() {
                         </p>
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="name">
+                        <Label htmlFor="callingName">
+                          Calling Name <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="callingName"
+                          placeholder="e.g., Malinda"
+                          value={formData.callingName}
+                          onChange={(e) =>
+                            setFormData({ ...formData, callingName: e.target.value })
+                          }
+                          required
+                        />
+                        <p className="text-xs text-gray-500">
+                          The name used in daily communication
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="fullName">
                           Full Name <span className="text-red-500">*</span>
                         </Label>
                         <Input
-                          id="name"
-                          placeholder="Don Malinda Perera"
-                          value={formData.name}
+                          id="fullName"
+                          placeholder="e.g., Don Malinda Perera"
+                          value={formData.fullName}
                           onChange={(e) =>
-                            setFormData({ ...formData, name: e.target.value })
+                            setFormData({ ...formData, fullName: e.target.value })
                           }
                           required
                         />

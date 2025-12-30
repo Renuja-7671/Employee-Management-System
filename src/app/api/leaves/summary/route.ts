@@ -37,6 +37,8 @@ export async function GET(request: NextRequest) {
       select: {
         id: true,
         employeeId: true,
+        callingName: true,
+        fullName: true,
         firstName: true,
         lastName: true,
         department: true,
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
         dateOfJoining: true,
       },
       orderBy: {
-        firstName: 'asc',
+        fullName: 'asc',
       },
     });
 
@@ -167,7 +169,9 @@ export async function GET(request: NextRequest) {
         employee: {
           id: employee.id,
           employeeId: employee.employeeId,
-          name: `${employee.firstName} ${employee.lastName}`,
+          name: employee.fullName || employee.callingName || `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
+          callingName: employee.callingName,
+          fullName: employee.fullName,
           firstName: employee.firstName,
           lastName: employee.lastName,
           department: employee.department,

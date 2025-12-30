@@ -16,9 +16,11 @@ export async function GET(request: NextRequest) {
         email: true,
         role: true,
         employeeId: true,
+        callingName: true,
+        fullName: true,
+        nameWithInitials: true,
         firstName: true,
         lastName: true,
-        nameWithInitials: true,
         nic: true,
         department: true,
         position: true,
@@ -50,7 +52,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     // Validate required fields
-    if (!body.email || !body.employeeId || !body.firstName || !body.lastName || !body.password) {
+    if (!body.email || !body.employeeId || !body.callingName || !body.fullName || !body.nameWithInitials || !body.password) {
       return NextResponse.json(
         { error: 'Missing required fields' },
         { status: 400 }
@@ -68,9 +70,11 @@ export async function POST(request: NextRequest) {
         email: body.email,
         password: hashedPassword,
         employeeId: body.employeeId,
-        firstName: body.firstName,
-        lastName: body.lastName,
-        nameWithInitials: body.nameWithInitials || null,
+        callingName: body.callingName,
+        fullName: body.fullName,
+        nameWithInitials: body.nameWithInitials,
+        firstName: body.firstName || null, // Deprecated - kept for backward compatibility
+        lastName: body.lastName || null, // Deprecated - kept for backward compatibility
         nic: body.nic || null,
         department: body.department,
         position: body.position,
@@ -87,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     // Send welcome email with account credentials (don't wait for completion)
     const emailData = {
-      employeeName: `${employee.firstName} ${employee.lastName}`,
+      employeeName: employee.fullName,
       employeeEmail: employee.email,
       employeeId: employee.employeeId,
       password: plainPassword,

@@ -11,6 +11,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -57,7 +64,6 @@ declare module 'jspdf' {
 
 interface Employee extends EmployeeAPI {
   name: string;
-  nameWithInitials?: string | null;
   birthday?: string;
   address?: string;
   emergencyContact?: string;
@@ -79,8 +85,8 @@ export function EmployeeProfiles() {
   >({});
   const [isEditMode, setIsEditMode] = useState(false);
   const [editFormData, setEditFormData] = useState({
-    firstName: '',
-    lastName: '',
+    callingName: '',
+    fullName: '',
     nameWithInitials: '',
     email: '',
     phone: '',
@@ -106,7 +112,7 @@ export function EmployeeProfiles() {
       // Transform employees data to include full name and map phone field
       const transformedEmployees = data.map(emp => ({
         ...emp,
-        name: `${emp.firstName} ${emp.lastName}`,
+        name: emp.fullName || emp.callingName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || 'N/A',
         phone: emp.phoneNumber ?? undefined,
         birthday: emp.birthday ? new Date(emp.birthday).toISOString().split('T')[0] : undefined,
         address: emp.address ?? undefined,
@@ -228,8 +234,8 @@ export function EmployeeProfiles() {
   const handleEditClick = () => {
     if (selectedEmployee) {
       setEditFormData({
-        firstName: selectedEmployee.firstName,
-        lastName: selectedEmployee.lastName,
+        callingName: selectedEmployee.callingName || '',
+        fullName: selectedEmployee.fullName || '',
         nameWithInitials: selectedEmployee.nameWithInitials || '',
         email: selectedEmployee.email,
         phone: selectedEmployee.phone || '',
@@ -250,8 +256,8 @@ export function EmployeeProfiles() {
     setEditProfilePicture(null);
     setEditProfilePicturePreview('');
     setEditFormData({
-      firstName: '',
-      lastName: '',
+      callingName: '',
+      fullName: '',
       nameWithInitials: '',
       email: '',
       phone: '',
@@ -321,8 +327,8 @@ export function EmployeeProfiles() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          firstName: editFormData.firstName,
-          lastName: editFormData.lastName,
+          callingName: editFormData.callingName,
+          fullName: editFormData.fullName,
           nameWithInitials: editFormData.nameWithInitials || null,
           email: editFormData.email,
           phoneNumber: editFormData.phone || null,
@@ -724,28 +730,26 @@ export function EmployeeProfiles() {
                 <div className="flex-1">
                   {isEditMode ? (
                     <div className="space-y-2">
-                      <div className="grid grid-cols-2 gap-2">
-                        <Input
-                          placeholder="First Name"
-                          value={editFormData.firstName}
-                          onChange={(e) =>
-                            setEditFormData({
-                              ...editFormData,
-                              firstName: e.target.value,
-                            })
-                          }
-                        />
-                        <Input
-                          placeholder="Last Name"
-                          value={editFormData.lastName}
-                          onChange={(e) =>
-                            setEditFormData({
-                              ...editFormData,
-                              lastName: e.target.value,
-                            })
-                          }
-                        />
-                      </div>
+                      <Input
+                        placeholder="Calling Name (e.g., Malinda)"
+                        value={editFormData.callingName}
+                        onChange={(e) =>
+                          setEditFormData({
+                            ...editFormData,
+                            callingName: e.target.value,
+                          })
+                        }
+                      />
+                      <Input
+                        placeholder="Full Name (e.g., Don Malinda Perera)"
+                        value={editFormData.fullName}
+                        onChange={(e) =>
+                          setEditFormData({
+                            ...editFormData,
+                            fullName: e.target.value,
+                          })
+                        }
+                      />
                       <Badge variant="secondary" className="mt-1">
                         {selectedEmployee.employeeId}
                       </Badge>
@@ -826,13 +830,25 @@ export function EmployeeProfiles() {
 
                   <div className="space-y-2">
                     <Label htmlFor="edit-department">Department</Label>
-                    <Input
-                      id="edit-department"
+                    <Select
                       value={editFormData.department}
-                      onChange={(e) =>
-                        setEditFormData({ ...editFormData, department: e.target.value })
+                      onValueChange={(value: string) =>
+                        setEditFormData({ ...editFormData, department: value })
                       }
-                    />
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select department" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="MANAGEMENT">Management</SelectItem>
+                        <SelectItem value="SALES_AND_MARKETING">Sales & Marketing</SelectItem>
+                        <SelectItem value="FINANCE">Finance</SelectItem>
+                        <SelectItem value="STORES">Stores</SelectItem>
+                        <SelectItem value="PROCUREMENT">Procurement</SelectItem>
+                        <SelectItem value="HR">Human Resources</SelectItem>
+                        <SelectItem value="IT">IT</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="space-y-2">

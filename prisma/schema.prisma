@@ -14,9 +14,11 @@ model User {
   role             Role       @default(EMPLOYEE)
   adminType        AdminType?
   employeeId       String     @unique
-  firstName        String
-  lastName         String
+  callingName      String?
+  fullName         String?
   nameWithInitials String?
+  firstName        String? // Deprecated - kept for backward compatibility
+  lastName         String? // Deprecated - kept for backward compatibility
   nic              String?    @unique
   department       Department
   position         String

@@ -54,9 +54,11 @@ export async function PUT(
     // Prepare update data - only allow specific fields to be updated
     const updateData: any = {};
 
+    if (body.callingName !== undefined) updateData.callingName = body.callingName;
+    if (body.fullName !== undefined) updateData.fullName = body.fullName;
+    if (body.nameWithInitials !== undefined) updateData.nameWithInitials = body.nameWithInitials;
     if (body.firstName !== undefined) updateData.firstName = body.firstName;
     if (body.lastName !== undefined) updateData.lastName = body.lastName;
-    if (body.nameWithInitials !== undefined) updateData.nameWithInitials = body.nameWithInitials;
     if (body.email !== undefined) updateData.email = body.email;
     if (body.phoneNumber !== undefined) updateData.phoneNumber = body.phoneNumber;
     if (body.nic !== undefined) updateData.nic = body.nic;
@@ -78,9 +80,11 @@ export async function PUT(
         email: true,
         role: true,
         employeeId: true,
+        callingName: true,
+        fullName: true,
+        nameWithInitials: true,
         firstName: true,
         lastName: true,
-        nameWithInitials: true,
         nic: true,
         department: true,
         position: true,

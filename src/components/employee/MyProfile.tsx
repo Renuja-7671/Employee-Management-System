@@ -183,9 +183,11 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
     setEditMode(false);
   };
 
-  const getInitials = (firstName: string, lastName: string) => {
-    if (!firstName && !lastName) return '??';
-    return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
+  const getInitials = (name: string) => {
+    if (!name) return '??';
+    const parts = name.trim().split(' ');
+    if (parts.length === 1) return parts[0].substring(0, 2).toUpperCase();
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
   };
 
   const formatDate = (dateString: string) => {
@@ -216,13 +218,13 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
             <div className="flex items-center gap-4">
               <Avatar className="h-20 w-20">
-                {profilePictureUrl && <AvatarImage src={profilePictureUrl} alt={`${profile.firstName} ${profile.lastName}`} />}
+                {profilePictureUrl && <AvatarImage src={profilePictureUrl} alt={profile.fullName || profile.callingName || 'Profile'} />}
                 <AvatarFallback className="bg-blue-100 text-blue-700 text-2xl">
-                  {getInitials(profile.firstName, profile.lastName)}
+                  {getInitials(profile.fullName || profile.callingName || `${profile.firstName || ''} ${profile.lastName || ''}`.trim())}
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h2 className="text-2xl font-semibold">{profile.firstName} {profile.lastName}</h2>
+                <h2 className="text-2xl font-semibold">{profile.fullName || profile.callingName || `${profile.firstName || ''} ${profile.lastName || ''}`.trim()}</h2>
                 <p className="text-gray-600 flex items-center gap-2 mt-1">
                   <User className="h-4 w-4" />
                   {profile.employeeId}
@@ -341,7 +343,7 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
                   <Label className="text-gray-500">Full Name</Label>
                   <div className="flex items-center gap-2">
                     <User className="h-4 w-4 text-gray-400" />
-                    <span>{profile.firstName} {profile.lastName}</span>
+                    <span>{profile.fullName || `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'N/A'}</span>
                   </div>
                 </div>
                 <Separator />

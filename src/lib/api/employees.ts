@@ -5,9 +5,11 @@ export interface Employee {
   email: string;
   role: string;
   employeeId: string;
-  firstName: string;
-  lastName: string;
-  nameWithInitials?: string | null;
+  callingName: string;
+  fullName: string;
+  nameWithInitials: string;
+  firstName?: string | null; // Deprecated
+  lastName?: string | null; // Deprecated
   nic?: string | null;
   department: string;
   position: string;
@@ -24,9 +26,11 @@ export interface Employee {
 }
 
 export interface CreateEmployeeData {
-  firstName: string;
-  lastName: string;
-  nameWithInitials?: string | null;
+  callingName: string;
+  fullName: string;
+  nameWithInitials: string;
+  firstName?: string | null; // Deprecated
+  lastName?: string | null; // Deprecated
   nic?: string | null;
   email: string;
   password: string;
@@ -37,6 +41,7 @@ export interface CreateEmployeeData {
   birthday?: string | null;
   address?: string | null;
   emergencyContact?: string | null;
+  dateOfJoining?: string | null;
   profilePicture?: string | null;
 }
 
