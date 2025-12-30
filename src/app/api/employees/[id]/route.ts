@@ -65,6 +65,7 @@ export async function PUT(
     if (body.birthday !== undefined) updateData.birthday = body.birthday ? new Date(body.birthday) : null;
     if (body.address !== undefined) updateData.address = body.address;
     if (body.emergencyContact !== undefined) updateData.emergencyContact = body.emergencyContact;
+    if (body.profilePicture !== undefined) updateData.profilePicture = body.profilePicture;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
 
     // Update employee
@@ -86,6 +87,7 @@ export async function PUT(
         birthday: true,
         address: true,
         emergencyContact: true,
+        profilePicture: true,
         dateOfJoining: true,
         isActive: true,
       },
