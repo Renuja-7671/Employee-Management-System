@@ -90,6 +90,7 @@ export function EmployeeProfiles() {
     birthday: '',
     address: '',
     emergencyContact: '',
+    dateOfJoining: '',
   });
   const [saving, setSaving] = useState(false);
   const [editProfilePicture, setEditProfilePicture] = useState<File | null>(null);
@@ -238,6 +239,7 @@ export function EmployeeProfiles() {
         birthday: selectedEmployee.birthday || '',
         address: selectedEmployee.address || '',
         emergencyContact: selectedEmployee.emergencyContact || '',
+        dateOfJoining: selectedEmployee.dateOfJoining ? new Date(selectedEmployee.dateOfJoining).toISOString().split('T')[0] : '',
       });
       setIsEditMode(true);
     }
@@ -259,6 +261,7 @@ export function EmployeeProfiles() {
       birthday: '',
       address: '',
       emergencyContact: '',
+      dateOfJoining: '',
     });
   };
 
@@ -329,6 +332,7 @@ export function EmployeeProfiles() {
           birthday: editFormData.birthday || null,
           address: editFormData.address || null,
           emergencyContact: editFormData.emergencyContact || null,
+          dateOfJoining: editFormData.dateOfJoining || null,
           profilePicture: profilePicturePath,
         }),
       });
@@ -844,13 +848,15 @@ export function EmployeeProfiles() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-gray-600">Joined Date</Label>
-                    <div className="flex items-center gap-2 h-10 px-3 rounded-md border bg-gray-50">
-                      <CalendarIcon className="h-4 w-4 text-gray-400" />
-                      <p className="text-sm">
-                        {new Date(selectedEmployee.dateOfJoining).toLocaleDateString()}
-                      </p>
-                    </div>
+                    <Label htmlFor="edit-dateOfJoining">Joined Date</Label>
+                    <Input
+                      id="edit-dateOfJoining"
+                      type="date"
+                      value={editFormData.dateOfJoining}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, dateOfJoining: e.target.value })
+                      }
+                    />
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
