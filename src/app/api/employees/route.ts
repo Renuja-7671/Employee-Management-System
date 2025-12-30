@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
         profilePicture: body.profilePicture || null,
         role: 'EMPLOYEE',
         isActive: true,
-        dateOfJoining: new Date(),
+        dateOfJoining: body.dateOfJoining ? new Date(body.dateOfJoining) : new Date(),
       },
     } as any);
 

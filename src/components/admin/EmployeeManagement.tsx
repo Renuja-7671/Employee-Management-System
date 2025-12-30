@@ -73,6 +73,7 @@ export function EmployeeManagement() {
     department: '',
     position: '',
     emergencyContact: '',
+    dateOfJoining: '',
   });
 
   useEffect(() => {
@@ -194,6 +195,7 @@ export function EmployeeManagement() {
         birthday: formData.birthday || null,
         address: formData.address || null,
         emergencyContact: formData.emergencyContact || null,
+        dateOfJoining: formData.dateOfJoining || null,
         profilePicture: profilePicturePath,
       };
 
@@ -215,6 +217,7 @@ export function EmployeeManagement() {
           department: '',
           position: '',
           emergencyContact: '',
+          dateOfJoining: '',
         });
         setProfilePicture(null);
         setProfilePicturePreview('');
@@ -539,6 +542,23 @@ export function EmployeeManagement() {
                               birthday: e.target.value,
                             })
                           }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="dateOfJoining">
+                          Joined Date <span className="text-red-500">*</span>
+                        </Label>
+                        <Input
+                          id="dateOfJoining"
+                          type="date"
+                          value={formData.dateOfJoining}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              dateOfJoining: e.target.value,
+                            })
+                          }
+                          required
                         />
                       </div>
                     </div>
