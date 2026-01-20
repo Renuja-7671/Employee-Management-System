@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { canApplyForLeaveType, getLeaveBalanceForEmployee } from '@/lib/leave-probation-utils';
 
 // Helper function to check if a date is a Sunday
 const isSunday = (date: Date): boolean => {
@@ -101,6 +102,27 @@ export async function POST(request: NextRequest) {
 
     const start = new Date(startDate);
     const end = new Date(endDate);
+    
+    // Check employee's probation status and leave eligibility
+    const applicantEmployee = await prisma.user.findUnique({
+      where: { id: userId },
+    }) as any;
+
+    if (!applicantEmployee) {
+      return NextResponse.json(
+        { error: 'Employee not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check if probation employee can apply for this leave type
+    const leaveEligibility = canApplyForLeaveType(applicantEmployee.isProbation, leaveType);
+    if (!leaveEligibility.canApply) {
+      return NextResponse.json(
+        { error: leaveEligibility.message },
+        { status: 400 }
+      );
+    }
 
     // Calculate working days excluding Sundays and company holidays
     // For half-day (0.5) leaves, use the provided numberOfDays
@@ -232,20 +254,27 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Calculate leave balance based on probation status
+    const calculatedBalance = getLeaveBalanceForEmployee(
+      applicantEmployee.isProbation,
+      leaveYear,
+      applicantEmployee.confirmedAt
+    );
+
     // Create or update leave balance if it doesn't exist or if it's for a different year
     if (!leaveBalance) {
       leaveBalance = await prisma.leaveBalance.create({
         data: {
           employeeId: userId,
           year: leaveYear,
-          annual: 14,
-          casual: 7,
-          medical: 7,
-          official: 0,
+          annual: calculatedBalance.annual,
+          casual: calculatedBalance.casual,
+          medical: calculatedBalance.medical,
+          official: calculatedBalance.official,
         },
       });
     } else if (leaveBalance.year !== leaveYear) {
-      // If the balance is for a different year, update it to the new year with fresh balance
+      // If the balance is for a different year, update it to the new year with calculated balance
       // This resets the balance when applying for leave in a new year
       leaveBalance = await prisma.leaveBalance.update({
         where: {
@@ -253,10 +282,10 @@ export async function POST(request: NextRequest) {
         },
         data: {
           year: leaveYear,
-          annual: 14,
-          casual: 7,
-          medical: 7,
-          official: 0,
+          annual: calculatedBalance.annual,
+          casual: calculatedBalance.casual,
+          medical: calculatedBalance.medical,
+          official: calculatedBalance.official,
         },
       });
     }

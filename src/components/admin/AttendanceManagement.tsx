@@ -2,7 +2,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,14 +73,15 @@ export function AttendanceManagement() {
   const [publicHolidays, setPublicHolidays] = useState<any[]>([]);
   const [syncingHolidays, setSyncingHolidays] = useState(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
+      // Use date range if both dates are set, otherwise fetch all
+      const shouldUseFilter = startDate && endDate;
+      
       const [attendanceResponse, employeesData, leavesResponse, holidaysResponse] = await Promise.all([
-        getAttendance(),
+        shouldUseFilter 
+          ? getAttendance(startDate, endDate, 1, 10000) // Fetch up to 10,000 records with date filter
+          : getAttendance(undefined, undefined, 1, 10000), // Fetch up to 10,000 records without filter
         getEmployees(),
         fetch('/api/leaves', { next: { revalidate: 30 } }),
         fetch('/api/admin/holidays', { next: { revalidate: 3600 } }), // Cache holidays for 1 hour
@@ -109,7 +110,11 @@ export function AttendanceManagement() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [startDate, endDate]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const getEmployeeName = (employeeId: string) => {
     const employee = employees.find((e) => e.id === employeeId);
@@ -660,6 +665,28 @@ export function AttendanceManagement() {
                       </SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <Button 
+                    onClick={fetchData} 
+                    variant="outline"
+                    size="sm"
+                    disabled={loading}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                    {loading ? 'Loading...' : 'Apply Filter'}
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      setStartDate(new Date().toISOString().split('T')[0]);
+                      setEndDate(new Date().toISOString().split('T')[0]);
+                      setSelectedEmployeeFilter('all');
+                    }}
+                    variant="ghost"
+                    size="sm"
+                  >
+                    Clear Filters
+                  </Button>
                 </div>
                 <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
                   <span>

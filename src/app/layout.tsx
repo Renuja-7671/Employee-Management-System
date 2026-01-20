@@ -6,7 +6,12 @@ import { Toaster } from 'sonner';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ 
+  subsets: ['latin'],
+  display: 'swap',
+  fallback: ['system-ui', 'arial'],
+  adjustFontFallback: false,
+});
 
 export const metadata: Metadata = {
   title: 'Employee Management System - Unique Industrial Solutions',

@@ -97,6 +97,8 @@ export function EmployeeProfiles() {
     address: '',
     emergencyContact: '',
     dateOfJoining: '',
+    isProbation: true,
+    confirmedAt: '',
   });
   const [saving, setSaving] = useState(false);
   const [editProfilePicture, setEditProfilePicture] = useState<File | null>(null);
@@ -167,7 +169,7 @@ export function EmployeeProfiles() {
     const upcomingDays = 30;
 
     return employees
-      .filter((emp) => emp.birthday)
+      .filter((emp) => emp.birthday && emp.isActive !== false) // Only include active employees
       .map((emp) => {
         const [year, month, day] = emp.birthday!.split('-');
         const birthdayThisYear = new Date(
@@ -246,6 +248,8 @@ export function EmployeeProfiles() {
         address: selectedEmployee.address || '',
         emergencyContact: selectedEmployee.emergencyContact || '',
         dateOfJoining: selectedEmployee.dateOfJoining ? new Date(selectedEmployee.dateOfJoining).toISOString().split('T')[0] : '',
+        isProbation: (selectedEmployee as any).isProbation ?? true,
+        confirmedAt: (selectedEmployee as any).confirmedAt ? new Date((selectedEmployee as any).confirmedAt).toISOString().split('T')[0] : '',
       });
       setIsEditMode(true);
     }
@@ -268,6 +272,8 @@ export function EmployeeProfiles() {
       address: '',
       emergencyContact: '',
       dateOfJoining: '',
+      isProbation: true,
+      confirmedAt: '',
     });
   };
 
@@ -340,6 +346,8 @@ export function EmployeeProfiles() {
           emergencyContact: editFormData.emergencyContact || null,
           dateOfJoining: editFormData.dateOfJoining || null,
           profilePicture: profilePicturePath,
+          isProbation: editFormData.isProbation,
+          confirmedAt: editFormData.confirmedAt || null,
         }),
       });
 
@@ -408,6 +416,7 @@ export function EmployeeProfiles() {
       emp.phone || 'N/A',
       emp.position,
       emp.department,
+      (emp as any).isProbation ? 'Probation' : 'Confirmed',
       emp.address || 'N/A',
       emp.emergencyContact || 'N/A',
       emp.birthday ? new Date(emp.birthday).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A',
@@ -417,7 +426,7 @@ export function EmployeeProfiles() {
     // Add employee details table - optimized for landscape A4 (297mm width)
     autoTable(doc, {
       startY: 60,
-      head: [['EMP ID', 'Full Name', 'Name w/ Initials', 'NIC', 'Email', 'Phone', 'Position', 'Department', 'Address', 'Emergency Contact', 'Birthday', 'Joined']],
+      head: [['EMP ID', 'Full Name', 'Name w/ Initials', 'NIC', 'Email', 'Phone', 'Position', 'Department', 'Status', 'Address', 'Emergency Contact', 'Birthday', 'Joined']],
       body: tableData,
       theme: 'grid',
       headStyles: {
@@ -435,17 +444,18 @@ export function EmployeeProfiles() {
       },
       columnStyles: {
         0: { cellWidth: 16, halign: 'center' },   // EMP ID
-        1: { cellWidth: 28 },                      // Full Name
-        2: { cellWidth: 22 },                      // Name with Initials
-        3: { cellWidth: 20, halign: 'center' },   // NIC
-        4: { cellWidth: 35 },                      // Email
-        5: { cellWidth: 20, halign: 'center' },   // Phone
-        6: { cellWidth: 24 },                      // Position
-        7: { cellWidth: 20 },                      // Department
-        8: { cellWidth: 40 },                      // Address
-        9: { cellWidth: 22 },                      // Emergency Contact
-        10: { cellWidth: 20, halign: 'center' },  // Birthday
-        11: { cellWidth: 20, halign: 'center' },  // Joined
+        1: { cellWidth: 26 },                      // Full Name
+        2: { cellWidth: 20 },                      // Name with Initials
+        3: { cellWidth: 18, halign: 'center' },   // NIC
+        4: { cellWidth: 32 },                      // Email
+        5: { cellWidth: 18, halign: 'center' },   // Phone
+        6: { cellWidth: 22 },                      // Position
+        7: { cellWidth: 18 },                      // Department
+        8: { cellWidth: 16, halign: 'center' },   // Status (Probation/Confirmed)
+        9: { cellWidth: 38 },                      // Address
+        10: { cellWidth: 20 },                     // Emergency Contact
+        11: { cellWidth: 18, halign: 'center' },  // Birthday
+        12: { cellWidth: 18, halign: 'center' },  // Joined
       },
       alternateRowStyles: {
         fillColor: [245, 247, 250],
@@ -875,6 +885,44 @@ export function EmployeeProfiles() {
                     />
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-isProbation">Probation Status</Label>
+                    <Select
+                      value={editFormData.isProbation ? 'true' : 'false'}
+                      onValueChange={(value: string) =>
+                        setEditFormData({
+                          ...editFormData,
+                          isProbation: value === 'true',
+                        })
+                      }
+                    >
+                      <SelectTrigger id="edit-isProbation">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="true">On Probation</SelectItem>
+                        <SelectItem value="false">Confirmed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-confirmedAt">Confirmation Date</Label>
+                    <Input
+                      id="edit-confirmedAt"
+                      type="date"
+                      value={editFormData.confirmedAt}
+                      onChange={(e) =>
+                        setEditFormData({ ...editFormData, confirmedAt: e.target.value })
+                      }
+                      placeholder="Leave empty for auto-update"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      This date is automatically set when probation status changes to confirmed. 
+                      You can manually override it here if needed.
+                    </p>
+                  </div>
+
                   <div className="space-y-2 md:col-span-2">
                     <Label htmlFor="edit-address">Address</Label>
                     <Input
@@ -1002,6 +1050,34 @@ export function EmployeeProfiles() {
                       </p>
                     </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-gray-600">Employment Status</Label>
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4 text-gray-400" />
+                      <Badge variant={(selectedEmployee as any).isProbation ? 'secondary' : 'default'}>
+                        {(selectedEmployee as any).isProbation ? 'On Probation' : 'Confirmed'}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {(selectedEmployee as any).confirmedAt && !(selectedEmployee as any).isProbation && (
+                    <div className="space-y-2">
+                      <Label className="text-gray-600">Confirmation Date</Label>
+                      <div className="flex items-center gap-2">
+                        <CalendarIcon className="h-4 w-4 text-gray-400" />
+                        <p>
+                          {(selectedEmployee as any).confirmedAt 
+                            ? new Date((selectedEmployee as any).confirmedAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              })
+                            : 'Not confirmed yet'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

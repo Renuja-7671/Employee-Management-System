@@ -30,6 +30,8 @@ export async function GET(request: NextRequest) {
         emergencyContact: true,
         dateOfJoining: true,
         isActive: true,
+        isProbation: true,
+        confirmedAt: true,
         profilePicture: true,
       },
       orderBy: {
@@ -85,6 +87,7 @@ export async function POST(request: NextRequest) {
         profilePicture: body.profilePicture || null,
         role: 'EMPLOYEE',
         isActive: true,
+        isProbation: body.isProbation !== undefined ? body.isProbation : true,
         dateOfJoining: body.dateOfJoining ? new Date(body.dateOfJoining) : new Date(),
       },
     } as any);

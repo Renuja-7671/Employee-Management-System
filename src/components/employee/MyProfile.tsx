@@ -424,6 +424,42 @@ export function MyProfile({ user, profile: initialProfile }: MyProfileProps) {
                 <span>{formatDate(profile.dateOfJoining)}</span>
               </div>
             </div>
+            <Separator />
+            <div className="space-y-1">
+              <Label className="text-gray-500">Probation Status</Label>
+              <div className="flex items-center gap-2">
+                <Shield className="h-4 w-4 text-gray-400" />
+                {profile.isProbation ? (
+                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                    On Probation
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                    Confirmed
+                  </Badge>
+                )}
+              </div>
+            </div>
+            {!profile.isProbation && profile.confirmedAt && (
+              <>
+                <Separator />
+                <div className="space-y-1">
+                  <Label className="text-gray-500">Confirmation Date</Label>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-gray-400" />
+                    <span>
+                      {profile.confirmedAt
+                        ? new Date(profile.confirmedAt).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })
+                        : 'Not confirmed yet'}
+                    </span>
+                  </div>
+                </div>
+              </>
+            )}
             {!profile.position || !profile.department ? (
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-4">
                 <p className="text-sm text-blue-700 flex items-center gap-2">

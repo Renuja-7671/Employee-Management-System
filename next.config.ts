@@ -5,6 +5,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     '/api/**/*': ['./node_modules/.prisma/client/**/*'],
   },
+  // Add timeout for external resources like Google Fonts
+  staticPageGenerationTimeout: 120,
 };
 
 export default nextConfig;

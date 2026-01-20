@@ -75,6 +75,7 @@ export function EmployeeManagement() {
     position: '',
     emergencyContact: '',
     dateOfJoining: '',
+    isProbation: true,
   });
 
   useEffect(() => {
@@ -193,6 +194,7 @@ export function EmployeeManagement() {
         emergencyContact: formData.emergencyContact || null,
         dateOfJoining: formData.dateOfJoining || null,
         profilePicture: profilePicturePath,
+        isProbation: formData.isProbation,
       };
 
       const result = await createEmployee(employeeData);
@@ -215,6 +217,7 @@ export function EmployeeManagement() {
           position: '',
           emergencyContact: '',
           dateOfJoining: '',
+          isProbation: true,
         });
         setProfilePicture(null);
         setProfilePicturePreview('');
@@ -284,27 +287,61 @@ export function EmployeeManagement() {
   };
 
   const exportToCSV = () => {
-    const headers = ['Employee ID', 'Name', 'Email', 'Joined Date'];
-    const rows = employees.map((emp) => [
+    // Filter employees based on showInactive toggle
+    const employeesToExport = showInactive
+      ? employees
+      : employees.filter(emp => emp.isActive);
+
+    if (employeesToExport.length === 0) {
+      toast.error('No employees to export');
+      return;
+    }
+
+    // Define headers matching the table columns
+    const headers = [
+      'Employee ID',
+      'Name',
+      'NIC',
+      'Email',
+      'Joined Date',
+      'Status',
+      'Probation Status'
+    ];
+
+    // Map employee data to CSV rows
+    const rows = employeesToExport.map((emp) => [
       emp.employeeId,
       emp.name,
+      emp.nic || 'N/A',
       emp.email,
       new Date(emp.dateOfJoining).toLocaleDateString(),
+      emp.isActive ? 'Active' : 'Inactive',
+      (emp as any).isProbation ? 'On Probation' : 'Confirmed'
     ]);
 
+    // Escape CSV values properly (handle commas and quotes)
+    const escapeCSV = (value: string) => {
+      if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        return `"${value.replace(/"/g, '""')}"`;
+      }
+      return value;
+    };
+
     const csvContent = [
-      headers.join(','),
-      ...rows.map((row) => row.join(',')),
+      headers.map(escapeCSV).join(','),
+      ...rows.map((row) => row.map(val => escapeCSV(String(val))).join(',')),
     ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `employees_${new Date().toISOString().split('T')[0]}.csv`;
+    const statusSuffix = showInactive ? 'all' : 'active';
+    a.download = `employees_${statusSuffix}_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
-    toast.success('Employee list exported');
+    
+    toast.success(`Exported ${employeesToExport.length} employee${employeesToExport.length !== 1 ? 's' : ''}`);
   };
 
   if (loading) {
@@ -357,7 +394,7 @@ export function EmployeeManagement() {
                       <Label htmlFor="profilePicture">Profile Picture</Label>
                       <div className="flex items-center gap-4">
                         {profilePicturePreview && (
-                          <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-gray-200">
+                          <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-gray-200 flex items-center justify-center bg-gray-50">
                             <img
                               src={profilePicturePreview}
                               alt="Profile preview"
@@ -577,6 +614,29 @@ export function EmployeeManagement() {
                           required
                         />
                       </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="isProbation">Probation Status</Label>
+                        <Select
+                          value={formData.isProbation ? 'true' : 'false'}
+                          onValueChange={(value: string) =>
+                            setFormData({
+                              ...formData,
+                              isProbation: value === 'true',
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select probation status" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="true">On Probation</SelectItem>
+                            <SelectItem value="false">Confirmed</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-gray-500">
+                          Whether the employee is currently on probation
+                        </p>
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="address">Address</Label>
@@ -629,6 +689,7 @@ export function EmployeeManagement() {
                   <TableHead>Email</TableHead>
                   <TableHead>Joined Date</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Probation</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -636,7 +697,7 @@ export function EmployeeManagement() {
                 {filteredEmployees.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="text-center text-gray-500 py-8"
                     >
                       {showInactive
@@ -666,6 +727,17 @@ export function EmployeeManagement() {
                         ) : (
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                             Inactive
+                          </span>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {(employee as any).isProbation ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                            Probation
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            Confirmed
                           </span>
                         )}
                       </TableCell>

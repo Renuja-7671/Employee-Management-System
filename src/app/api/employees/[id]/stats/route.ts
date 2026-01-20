@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getLeaveBalanceForEmployee } from '@/lib/leave-probation-utils';
 
 export async function GET(
   request: NextRequest,
@@ -10,8 +11,28 @@ export async function GET(
 
     // Get current month start and end
     const now = new Date();
+    const currentYear = now.getFullYear();
     const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const currentMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+    // Fetch employee to get probation status and confirmation date
+    const employee = await prisma.user.findUnique({
+      where: { id: employeeId },
+    }) as any;
+
+    if (!employee) {
+      return NextResponse.json(
+        { error: 'Employee not found' },
+        { status: 404 }
+      );
+    }
+
+    // Calculate base leave entitlement based on probation status
+    const baseLeaveBalance = getLeaveBalanceForEmployee(
+      employee.isProbation ?? true,
+      currentYear,
+      employee.confirmedAt
+    );
 
     // Fetch all data in parallel for maximum performance
     const [leaveBalance, pendingLeavesCount, approvedLeavesCount, attendanceCount] = await Promise.all([
@@ -20,6 +41,10 @@ export async function GET(
         where: {
           employeeId,
           status: 'APPROVED',
+          startDate: {
+            gte: new Date(currentYear, 0, 1), // January 1st of current year
+            lt: new Date(currentYear + 1, 0, 1), // January 1st of next year
+          },
         },
         select: {
           leaveType: true,
@@ -82,9 +107,9 @@ export async function GET(
     });
 
     const balance = {
-      annual: Math.max(0, 14 - annualTaken),
-      casual: Math.max(0, 7 - casualTaken),
-      medical: Math.max(0, 7 - medicalTaken),
+      annual: Math.max(0, baseLeaveBalance.annual - annualTaken),
+      casual: Math.max(0, baseLeaveBalance.casual - casualTaken),
+      medical: Math.max(0, baseLeaveBalance.medical - medicalTaken),
     };
 
     const counts = {

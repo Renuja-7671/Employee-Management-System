@@ -1,7 +1,6 @@
-// src/app/api/employees/[id]/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { logProbationStatusChange } from '@/lib/leave-probation-utils';
 
 export async function GET(
   request: NextRequest,
@@ -39,10 +38,10 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
 
-    // Check if employee exists
+    // Check if employee exists and get probation status
     const existingEmployee = await prisma.user.findUnique({
       where: { id },
-    });
+    }) as any;
 
     if (!existingEmployee) {
       return NextResponse.json(
@@ -70,6 +69,32 @@ export async function PUT(
     if (body.dateOfJoining !== undefined) updateData.dateOfJoining = body.dateOfJoining ? new Date(body.dateOfJoining) : null;
     if (body.profilePicture !== undefined) updateData.profilePicture = body.profilePicture;
     if (body.isActive !== undefined) updateData.isActive = body.isActive;
+    
+    // Handle manual confirmedAt override (if provided)
+    if (body.confirmedAt !== undefined) {
+      updateData.confirmedAt = body.confirmedAt ? new Date(body.confirmedAt) : null;
+    }
+    
+    // Handle probation status change
+    if (body.isProbation !== undefined) {
+      updateData.isProbation = body.isProbation;
+      
+      // If changing from probation (true) to confirmed (false), set confirmedAt automatically
+      // but only if confirmedAt was not manually provided
+      if (existingEmployee.isProbation === true && body.isProbation === false && body.confirmedAt === undefined) {
+        updateData.confirmedAt = new Date();
+        
+        // Log the probation status change
+        logProbationStatusChange({
+          employeeId: id,
+          previousStatus: true,
+          newStatus: false,
+          changedAt: new Date(),
+        });
+        
+        console.log(`[PROBATION] Employee ${existingEmployee.employeeId} confirmed at ${updateData.confirmedAt.toISOString()}`);
+      }
+    }
 
     // Update employee
     const employee = await prisma.user.update({
@@ -95,6 +120,7 @@ export async function PUT(
         profilePicture: true,
         dateOfJoining: true,
         isActive: true,
+        isProbation: true,
       },
     } as any);
 

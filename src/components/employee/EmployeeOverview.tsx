@@ -92,9 +92,10 @@ export const EmployeeOverview = memo(function EmployeeOverview({ user }: Employe
             <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-orange-500" />
           </CardHeader>
           <CardContent className="px-4 sm:px-6">
-            <div className="text-xl sm:text-2xl font-bold">{leaveCounts.medicalLeaveTaken}</div>
+            <div className="text-xl sm:text-2xl font-bold">{leaveBalance.medical} <span className="text-sm sm:text-base font-normal">days</span></div>
+            <Progress value={(leaveBalance.medical / 7) * 100} className="mt-2" />
             <p className="text-[10px] sm:text-xs text-muted-foreground mt-2">
-              leaves taken this year
+              {leaveBalance.medical} of 7 remaining
             </p>
           </CardContent>
         </Card>

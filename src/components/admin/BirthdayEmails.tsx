@@ -24,6 +24,7 @@ interface Employee {
   email: string;
   birthday: string | null;
   department: string;
+  isActive: boolean;
 }
 
 export function BirthdayEmails() {
@@ -48,14 +49,17 @@ export function BirthdayEmails() {
 
       if (response.ok) {
         const employeesData = data.employees || [];
-        setEmployees(employeesData);
+        
+        // Filter only active employees
+        const activeEmployees = employeesData.filter((emp: Employee) => emp.isActive !== false);
+        setEmployees(activeEmployees);
 
         // Filter employees with birthdays today
         const today = new Date();
         const todayMonth = today.getMonth() + 1;
         const todayDay = today.getDate();
 
-        const todayBirthdays = employeesData.filter((emp: Employee) => {
+        const todayBirthdays = activeEmployees.filter((emp: Employee) => {
           if (!emp.birthday) return false;
           const birthday = new Date(emp.birthday);
           return (
@@ -216,7 +220,7 @@ export function BirthdayEmails() {
                   onClick={selectAllBirthdayEmployees}
                   disabled={sending}
                 >
-                  Select Today's Birthdays
+                  Select Today&apos;s Birthdays
                 </Button>
               )}
               <Button
@@ -249,7 +253,7 @@ export function BirthdayEmails() {
               <div className="mb-6">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                   <Gift className="h-5 w-5 text-blue-600" />
-                  Today's Birthdays ({birthdayEmployees.length})
+                  Today&apos;s Birthdays ({birthdayEmployees.length})
                 </h3>
                 <div className="space-y-2">
                   {birthdayEmployees.map((employee) => (

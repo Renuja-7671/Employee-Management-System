@@ -36,6 +36,8 @@ export async function POST(request: NextRequest) {
         birthday: true,
         dateOfJoining: true,
         isActive: true,
+        isProbation: true,
+        confirmedAt: true,
       },
     } as any);
 
@@ -65,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Remove password from response
-    const { password: _, ...userWithoutPassword } = user;
+    const { password: _password, ...userWithoutPassword } = user;
 
     return NextResponse.json({
       success: true,
@@ -86,6 +88,8 @@ export async function POST(request: NextRequest) {
         emergencyContact: user.emergencyContact,
         birthday: user.birthday,
         dateOfJoining: user.dateOfJoining,
+        isProbation: (user as any).isProbation,
+        confirmedAt: (user as any).confirmedAt,
       },
     });
   } catch (error: any) {

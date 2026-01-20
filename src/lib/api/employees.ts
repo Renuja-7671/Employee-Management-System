@@ -16,6 +16,8 @@ export interface Employee {
   phoneNumber?: string | null;
   dateOfJoining: string;
   isActive: boolean;
+  isProbation?: boolean;
+  confirmedAt?: string | null;
   name?: string; // For compatibility with backend
   phone?: string;
   address?: string;
@@ -43,6 +45,7 @@ export interface CreateEmployeeData {
   emergencyContact?: string | null;
   dateOfJoining?: string | null;
   profilePicture?: string | null;
+  isProbation?: boolean;
 }
 
 export async function getEmployees(): Promise<Employee[]> {
