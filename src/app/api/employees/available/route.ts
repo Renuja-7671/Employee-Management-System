@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
     const employeesWithPendingCoverRequests = await prisma.coverRequest.findMany({
       where: {
         status: 'PENDING',
-        leave: {
+        Leave: {
           OR: [
             // Leave that starts during the requested period
             {
@@ -121,7 +121,7 @@ export async function GET(request: NextRequest) {
       },
       select: {
         coverEmployeeId: true,
-        leave: {
+        Leave: {
           select: {
             startDate: true,
             endDate: true,
@@ -142,8 +142,8 @@ export async function GET(request: NextRequest) {
       withPendingCoverRequests: employeeIdsWithPendingCoverRequests.size,
       pendingCoverDetails: employeesWithPendingCoverRequests.map(r => ({
         coverEmployeeId: r.coverEmployeeId,
-        leaveStart: r.leave.startDate,
-        leaveEnd: r.leave.endDate,
+        leaveStart: r.Leave.startDate,
+        leaveEnd: r.Leave.endDate,
       })),
     });
 

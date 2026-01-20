@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import crypto from 'crypto';
 
 /**
  * Get all biometric mappings with employee details
@@ -95,12 +96,14 @@ export async function POST(request: NextRequest) {
     // Create mapping
     const mapping = await prisma.biometricMapping.create({
       data: {
+        id: crypto.randomUUID(),
         employeeId,
         deviceEmployeeNo,
         cardNo: cardNo || null,
         fingerprintEnrolled: fingerprintEnrolled || false,
         faceEnrolled: faceEnrolled || false,
         syncedAt: new Date(),
+        updatedAt: new Date(),
       },
       include: {
         employee: {

@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { HikvisionClient } from '@/lib/services/hikvision';
+import crypto from 'crypto';
 
 /**
  * API endpoints for managing biometric devices
@@ -72,6 +73,7 @@ export async function POST(request: NextRequest) {
     // Create device in database
     const device = await prisma.biometricDevice.create({
       data: {
+        id: crypto.randomUUID(),
         name: body.name,
         deviceType: body.deviceType || 'HIKVISION',
         ipAddress: body.ipAddress,
@@ -83,6 +85,7 @@ export async function POST(request: NextRequest) {
         firmwareVersion: deviceInfo?.firmwareVersion,
         macAddress: deviceInfo?.macAddress,
         isActive: true,
+        updatedAt: new Date(),
       },
     });
 

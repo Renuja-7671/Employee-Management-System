@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
     // Find the reset token
     const resetToken = await prisma.passwordResetToken.findUnique({
       where: { token },
-      include: { user: true },
+      include: { User: true },
     });
 
     if (!resetToken) {
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user is active
-    if (!resetToken.user.isActive) {
+    if (!resetToken.User.isActive) {
       return NextResponse.json(
         { error: 'This account is inactive. Please contact your administrator.' },
         { status: 403 }
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
       }),
     ]);
 
-    console.log(`Password reset successful for user: ${resetToken.user.email}`);
+    console.log(`Password reset successful for user: ${resetToken.User.email}`);
 
     return NextResponse.json({
       success: true,
@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
     const resetToken = await prisma.passwordResetToken.findUnique({
       where: { token },
       include: {
-        user: {
+        User: {
           select: {
             email: true,
             firstName: true,
@@ -162,7 +162,7 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    if (!resetToken.user.isActive) {
+    if (!resetToken.User.isActive) {
       return NextResponse.json({
         valid: false,
         error: 'This account is inactive',
@@ -171,8 +171,8 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       valid: true,
-      email: resetToken.user.email,
-      firstName: resetToken.user.firstName,
+      email: resetToken.User.email,
+      firstName: resetToken.User.firstName,
     });
   } catch (error: any) {
     console.error('Verify token error:', error);

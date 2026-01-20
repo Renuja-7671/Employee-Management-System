@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
         status: 'PENDING',
       },
       include: {
-        leave: {
+        Leave: {
           include: {
             employee: {
               select: {
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
 
     // Transform the data for frontend consumption
     const formattedRequests = coverRequests.map((request) => {
-      const leave = request.leave;
+      const leave = request.Leave;
       const employee = leave.employee;
 
       // Calculate total days

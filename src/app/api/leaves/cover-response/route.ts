@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     const leave = await prisma.leave.findUnique({
       where: { id: leaveId },
       include: {
-        coverRequest: true,
+        CoverRequest: true,
         employee: {
           select: {
             id: true,
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if cover request exists and is pending
-    if (!leave.coverRequest || leave.coverRequest.status !== 'PENDING') {
+    if (!leave.CoverRequest || leave.CoverRequest.status !== 'PENDING') {
       return NextResponse.json(
         { error: 'Cover request not found or already responded to' },
         { status: 400 }
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if cover request has expired
-    if (new Date() > leave.coverRequest.expiresAt) {
+    if (new Date() > leave.CoverRequest.expiresAt) {
       return NextResponse.json(
         { error: 'This cover request has expired' },
         { status: 400 }
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
     if (approved) {
       // APPROVED: Update cover request status to ACCEPTED
       await prisma.coverRequest.update({
-        where: { id: leave.coverRequest.id },
+        where: { id: leave.CoverRequest.id },
         data: {
           status: 'ACCEPTED',
           respondedAt: new Date(),
@@ -119,7 +119,7 @@ export async function POST(request: NextRequest) {
     } else {
       // DECLINED: Update cover request status to DECLINED
       await prisma.coverRequest.update({
-        where: { id: leave.coverRequest.id },
+        where: { id: leave.CoverRequest.id },
         data: {
           status: 'DECLINED',
           respondedAt: new Date(),

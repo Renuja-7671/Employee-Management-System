@@ -8,7 +8,7 @@ datasource db {
 }
 
 model Attendance {
-  id         String           @id
+  id         String           @id @default(uuid())
   employeeId String
   date       DateTime
   checkIn    DateTime?
@@ -18,7 +18,7 @@ model Attendance {
   isWeekend  Boolean          @default(false)
   notes      String?
   createdAt  DateTime         @default(now())
-  updatedAt  DateTime
+  updatedAt  DateTime         @default(now()) @updatedAt
   deviceId   String?
   source     AttendanceSource @default(MANUAL)
   verifyMode Int?
@@ -31,7 +31,7 @@ model Attendance {
 }
 
 model AttendanceLog {
-  id               String    @id
+  id               String    @id @default(uuid())
   deviceEmployeeNo String
   employeeId       String?
   timestamp        DateTime
@@ -51,7 +51,7 @@ model AttendanceLog {
 }
 
 model BiometricDevice {
-  id              String     @id
+  id              String     @id @default(uuid())
   name            String
   deviceType      DeviceType
   ipAddress       String
@@ -65,14 +65,14 @@ model BiometricDevice {
   isActive        Boolean    @default(true)
   lastSyncAt      DateTime?
   createdAt       DateTime   @default(now())
-  updatedAt       DateTime
+  updatedAt       DateTime   @default(now()) @updatedAt
 
   @@index([isActive])
   @@index([serialNumber])
 }
 
 model BiometricMapping {
-  id                  String    @id
+  id                  String    @id @default(uuid())
   employeeId          String    @unique
   deviceEmployeeNo    String    @unique
   cardNo              String?
@@ -80,12 +80,12 @@ model BiometricMapping {
   faceEnrolled        Boolean   @default(false)
   syncedAt            DateTime?
   createdAt           DateTime  @default(now())
-  updatedAt           DateTime
-  User                User      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  updatedAt           DateTime  @default(now()) @updatedAt
+  employee            User      @relation("BiometricMappingEmployee", fields: [employeeId], references: [id], onDelete: Cascade)
 }
 
 model CoverDutyReassignment {
-  id                      String   @id
+  id                      String   @id @default(uuid())
   originalLeaveId         String
   coverEmployeeLeaveId    String
   originalCoverEmployeeId String
@@ -93,7 +93,7 @@ model CoverDutyReassignment {
   reassignedBy            String?
   status                  String   @default("PENDING")
   createdAt               DateTime @default(now())
-  updatedAt               DateTime
+  updatedAt               DateTime @default(now()) @updatedAt
 
   @@index([coverEmployeeLeaveId])
   @@index([originalLeaveId])
@@ -101,7 +101,7 @@ model CoverDutyReassignment {
 }
 
 model CoverRequest {
-  id              String      @id
+  id              String      @id @default(uuid())
   leaveId         String      @unique
   coverEmployeeId String
   status          CoverStatus @default(PENDING)
@@ -118,25 +118,25 @@ model CoverRequest {
 
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
 model Leave {
-  id                               String        @id
-  employeeId                       String
-  leaveType                        LeaveType
-  startDate                        DateTime
-  endDate                          DateTime
-  totalDays                        Float
-  reason                           String
-  status                           LeaveStatus   @default(PENDING_COVER)
-  adminResponse                    String?
-  coverEmployeeId                  String?
-  medicalCertPath                  String?
-  isCancelled                      Boolean       @default(false)
-  cancellationReason               String?
-  createdAt                        DateTime      @default(now())
-  updatedAt                        DateTime
-  isNoPay                          Boolean       @default(false)
-  CoverRequest                     CoverRequest?
-  User_Leave_coverEmployeeIdToUser User?         @relation("Leave_coverEmployeeIdToUser", fields: [coverEmployeeId], references: [id])
-  User_Leave_employeeIdToUser      User          @relation("Leave_employeeIdToUser", fields: [employeeId], references: [id], onDelete: Cascade)
+  id                  String        @id @default(uuid())
+  employeeId          String
+  leaveType           LeaveType
+  startDate           DateTime
+  endDate             DateTime
+  totalDays           Float
+  reason              String
+  status              LeaveStatus   @default(PENDING_COVER)
+  adminResponse       String?
+  coverEmployeeId     String?
+  medicalCertPath     String?
+  isCancelled         Boolean       @default(false)
+  cancellationReason  String?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @default(now()) @updatedAt
+  isNoPay             Boolean       @default(false)
+  CoverRequest        CoverRequest?
+  coverEmployee       User?         @relation("Leave_coverEmployeeIdToUser", fields: [coverEmployeeId], references: [id])
+  employee            User          @relation("Leave_employeeIdToUser", fields: [employeeId], references: [id], onDelete: Cascade)
 
   @@index([employeeId])
   @@index([startDate])
@@ -144,13 +144,13 @@ model Leave {
 }
 
 model LeaveBalance {
-  id         String   @id
+  id         String   @id @default(uuid())
   employeeId String   @unique
   year       Int
   annual     Float    @default(14)
   casual     Float    @default(7)
   medical    Float    @default(7)
-  updatedAt  DateTime
+  updatedAt  DateTime @default(now()) @updatedAt
   official   Float    @default(0)
   User       User     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
 
@@ -158,7 +158,7 @@ model LeaveBalance {
 }
 
 model Notification {
-  id                               String           @id
+  id                               String           @id @default(uuid())
   userId                           String
   type                             NotificationType
   title                            String
@@ -178,7 +178,7 @@ model Notification {
 }
 
 model PasswordResetToken {
-  id        String    @id
+  id        String    @id @default(uuid())
   userId    String
   token     String    @unique
   expiresAt DateTime
@@ -193,7 +193,7 @@ model PasswordResetToken {
 }
 
 model PublicHoliday {
-  id          String   @id
+  id          String   @id @default(uuid())
   name        String
   date        DateTime
   description String?
@@ -203,7 +203,7 @@ model PublicHoliday {
 }
 
 model User {
-  id                                       String               @id
+  id                                       String               @id @default(uuid())
   email                                    String               @unique
   password                                 String
   role                                     Role                 @default(EMPLOYEE)
@@ -221,7 +221,7 @@ model User {
   dateOfJoining                            DateTime             @default(now())
   isActive                                 Boolean              @default(true)
   createdAt                                DateTime             @default(now())
-  updatedAt                                DateTime
+  updatedAt                                DateTime             @default(now()) @updatedAt
   adminType                                AdminType?
   nic                                      String?              @unique
   callingName                              String?
@@ -229,10 +229,10 @@ model User {
   isProbation                              Boolean              @default(true)
   confirmedAt                              DateTime?
   Attendance                               Attendance[]
-  BiometricMapping                         BiometricMapping?
+  BiometricMapping                         BiometricMapping?                @relation("BiometricMappingEmployee")
   CoverRequest                             CoverRequest[]
-  Leave_Leave_coverEmployeeIdToUser        Leave[]              @relation("Leave_coverEmployeeIdToUser")
-  Leave_Leave_employeeIdToUser             Leave[]              @relation("Leave_employeeIdToUser")
+  leavesCovered                            Leave[]              @relation("Leave_coverEmployeeIdToUser")
+  leaves                                   Leave[]              @relation("Leave_employeeIdToUser")
   LeaveBalance                             LeaveBalance?
   Notification_Notification_senderIdToUser Notification[]       @relation("Notification_senderIdToUser")
   Notification_Notification_userIdToUser   Notification[]       @relation("Notification_userIdToUser")

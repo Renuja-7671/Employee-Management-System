@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { createAttendanceSyncService } from '@/lib/services/attendance-sync';
+import crypto from 'crypto';
 
 /**
  * API endpoints for managing employee biometric mappings
@@ -82,11 +83,13 @@ export async function POST(request: NextRequest) {
     // Create mapping
     const mapping = await prisma.biometricMapping.create({
       data: {
+        id: crypto.randomUUID(),
         employeeId: body.employeeId,
         deviceEmployeeNo: body.deviceEmployeeNo,
         cardNo: body.cardNo,
         fingerprintEnrolled: body.fingerprintEnrolled || false,
         faceEnrolled: body.faceEnrolled || false,
+        updatedAt: new Date(),
       },
       include: {
         employee: {

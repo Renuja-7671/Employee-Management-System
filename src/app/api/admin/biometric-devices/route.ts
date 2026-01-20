@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import crypto from 'crypto';
 
 /**
  * Get all biometric devices
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
     // Create device
     const device = await prisma.biometricDevice.create({
       data: {
+        id: crypto.randomUUID(),
         name,
         deviceType,
         ipAddress,
@@ -78,6 +80,7 @@ export async function POST(request: NextRequest) {
         firmwareVersion: firmwareVersion || null,
         macAddress: macAddress || null,
         isActive: isActive !== undefined ? isActive : true,
+        updatedAt: new Date(),
       },
     });
 
