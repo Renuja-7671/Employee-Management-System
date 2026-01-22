@@ -1,6 +1,5 @@
 // Test email script - reads configuration from .env file
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-require('dotenv').config();
+import 'dotenv/config';
 import { createTransport } from 'nodemailer';
 
 console.log('🔍 Testing Email Configuration from .env file...\n');
