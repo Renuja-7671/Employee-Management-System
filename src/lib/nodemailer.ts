@@ -10,16 +10,37 @@ export const transporter = nodemailer.createTransport({
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
   },
+  tls: {
+    // Allow self-signed certificates (common with hosting providers like LankaHost)
+    rejectUnauthorized: false,
+    ciphers: 'SSLv3', // For older servers
+  },
+  // Try to use STARTTLS
+  requireTLS: process.env.EMAIL_SECURE !== 'true',
+  // Add connection timeout
+  connectionTimeout: 10000, // 10 seconds
+  greetingTimeout: 10000,
+  socketTimeout: 10000,
+  // Enable debug output
+  debug: true,
+  logger: true,
 });
 
 // Verify transporter configuration
 export async function verifyEmailConfig() {
   try {
+    console.log('Attempting to verify email configuration...');
+    console.log('Host:', process.env.EMAIL_HOST);
+    console.log('Port:', process.env.EMAIL_PORT);
+    console.log('Secure:', process.env.EMAIL_SECURE);
+    console.log('User:', process.env.EMAIL_USER);
+    
     await transporter.verify();
-    console.log('Email server is ready to send messages');
+    console.log('✅ Email server is ready to send messages');
     return true;
   } catch (error) {
-    console.error('Email server verification failed:', error);
+    console.error('❌ Email server verification failed:');
+    console.error('Error details:', error);
     return false;
   }
 }
