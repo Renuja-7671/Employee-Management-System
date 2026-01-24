@@ -326,9 +326,15 @@ export const ApplyLeave = memo(function ApplyLeave({ user, onSuccess }: ApplyLea
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Validate
-    if (!formData.leaveType || !formData.startDate || !formData.endDate || !formData.coverEmployeeId) {
+    // Validate - cover employee not required for official leave
+    if (!formData.leaveType || !formData.startDate || !formData.endDate) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    // Cover employee is required for all leave types except official
+    if (formData.leaveType !== 'official' && !formData.coverEmployeeId) {
+      toast.error('Please select a cover employee');
       return;
     }
 
@@ -742,45 +748,61 @@ export const ApplyLeave = memo(function ApplyLeave({ user, onSuccess }: ApplyLea
               </div>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="coverEmployee" className="text-xs sm:text-sm">Cover Employee *</Label>
-              <Select
-                value={formData.coverEmployeeId}
-                onValueChange={(value) => setFormData({ ...formData, coverEmployeeId: value })}
-                required
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={employees.length > 0 ? "Select cover employee" : "No employees available"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {employees.length > 0 ? (
-                    employees.map((emp) => (
-                      <SelectItem key={emp.id} value={emp.id}>
-                        {emp.firstName} {emp.lastName} ({emp.employeeId})
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <div className="p-2 text-sm text-gray-500">No employees available</div>
-                  )}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-gray-500">
-                {employees.length > 0
-                  ? "The cover employee must approve your request within 12 hours"
-                  : "There are no other employees in the system"}
-              </p>
-            </div>
-
-            <div className="flex items-start gap-2 p-2 sm:p-3 bg-orange-50 rounded-lg">
-              <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600 mt-0.5 flex-shrink-0" />
-              <div className="text-[10px] sm:text-xs text-gray-700 min-w-0">
-                <p className="font-semibold">Important: Your leave request will go through two approval stages:</p>
-                <ol className="list-decimal list-inside mt-1 space-y-1">
-                  <li>Cover employee must approve within 12 hours</li>
-                  <li>Admin will then review and approve/decline your request</li>
-                </ol>
+            {/* Cover Employee - Not required for official leave */}
+            {formData.leaveType !== 'official' && (
+              <div className="space-y-2">
+                <Label htmlFor="coverEmployee" className="text-xs sm:text-sm">Cover Employee *</Label>
+                <Select
+                  value={formData.coverEmployeeId}
+                  onValueChange={(value) => setFormData({ ...formData, coverEmployeeId: value })}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={employees.length > 0 ? "Select cover employee" : "No employees available"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employees.length > 0 ? (
+                      employees.map((emp) => (
+                        <SelectItem key={emp.id} value={emp.id}>
+                          {emp.firstName} {emp.lastName} ({emp.employeeId})
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <div className="p-2 text-sm text-gray-500">No employees available</div>
+                    )}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-gray-500">
+                  {employees.length > 0
+                    ? "The cover employee must approve your request within 12 hours"
+                    : "There are no other employees in the system"}
+                </p>
               </div>
-            </div>
+            )}
+
+            {/* Info message for official leave */}
+            {formData.leaveType === 'official' && (
+              <div className="flex items-start gap-2 p-2 sm:p-3 bg-blue-50 rounded-lg">
+                <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="text-[10px] sm:text-xs text-gray-700 min-w-0">
+                  <p className="font-semibold">Official Leave (Business Purpose)</p>
+                  <p className="mt-1">No cover employee required. Your request will go directly to admin for approval.</p>
+                </div>
+              </div>
+            )}
+
+            {formData.leaveType && formData.leaveType !== 'official' && (
+              <div className="flex items-start gap-2 p-2 sm:p-3 bg-orange-50 rounded-lg">
+                <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600 mt-0.5 flex-shrink-0" />
+                <div className="text-[10px] sm:text-xs text-gray-700 min-w-0">
+                  <p className="font-semibold">Important: Your leave request will go through two approval stages:</p>
+                  <ol className="list-decimal list-inside mt-1 space-y-1">
+                    <li>Cover employee must approve within 12 hours</li>
+                    <li>Admin will then review and approve/decline your request</li>
+                  </ol>
+                </div>
+              </div>
+            )}
 
             <Button type="submit" className="w-full text-xs sm:text-sm" disabled={loading || uploading}>
               {loading ? 'Submitting...' : uploading ? 'Uploading...' : 'Submit Leave Request'}

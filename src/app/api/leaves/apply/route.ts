@@ -93,9 +93,19 @@ export async function POST(request: NextRequest) {
     } = body;
 
     // Validate required fields
-    if (!userId || !leaveType || !startDate || !endDate || !coverEmployeeId) {
+    if (!userId || !leaveType || !startDate || !endDate) {
       return NextResponse.json(
         { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
+
+    const leaveTypeUpper = leaveType.toUpperCase();
+
+    // Cover employee is required for all leave types except official
+    if (leaveTypeUpper !== 'OFFICIAL' && !coverEmployeeId) {
+      return NextResponse.json(
+        { error: 'Cover employee is required for this leave type' },
         { status: 400 }
       );
     }
@@ -291,7 +301,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if this will be a No Pay leave
-    const leaveTypeUpper = leaveType.toUpperCase();
     let isNoPay = false;
     let noPayMessage = '';
 
@@ -510,6 +519,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Create leave request
+    // Official leave goes directly to admin, others require cover employee approval
     const leave = await prisma.leave.create({
       data: {
         employeeId: userId,
@@ -518,42 +528,69 @@ export async function POST(request: NextRequest) {
         endDate: new Date(endDate),
         totalDays,
         reason: reason || '',
-        coverEmployeeId,
+        coverEmployeeId: leaveTypeUpper === 'OFFICIAL' ? null : coverEmployeeId,
         medicalCertPath: medicalCertUrl || null,
-        status: 'PENDING_COVER',
+        status: leaveTypeUpper === 'OFFICIAL' ? 'PENDING_ADMIN' : 'PENDING_COVER',
         isNoPay: isNoPay,
       },
     });
 
-    // Create cover request with 12-hour expiry
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 12);
-
-    await prisma.coverRequest.create({
-      data: {
-        leaveId: leave.id,
-        coverEmployeeId,
-        status: 'PENDING',
-        expiresAt,
-      },
-    });
-
-    // Create notification for cover employee
+    // Get employee details for notifications
     const employee = await prisma.user.findUnique({
       where: { id: userId },
       select: { firstName: true, lastName: true },
     });
 
-    await prisma.notification.create({
-      data: {
-        userId: coverEmployeeId,
-        type: 'COVER_REQUEST',
-        title: 'New Cover Request',
-        message: `${employee?.firstName} ${employee?.lastName} requested you to cover their ${leaveType} leave from ${start.toLocaleDateString()} to ${end.toLocaleDateString()}`,
-        senderId: userId,
-        relatedId: leave.id,
-      },
-    });
+    // Only create cover request for non-official leaves
+    if (leaveTypeUpper !== 'OFFICIAL') {
+      // Create cover request with 12-hour expiry
+      const expiresAt = new Date();
+      expiresAt.setHours(expiresAt.getHours() + 12);
+
+      await prisma.coverRequest.create({
+        data: {
+          leaveId: leave.id,
+          coverEmployeeId,
+          status: 'PENDING',
+          expiresAt,
+        },
+      });
+
+      // Create notification for cover employee
+      await prisma.notification.create({
+        data: {
+          userId: coverEmployeeId,
+          type: 'COVER_REQUEST',
+          title: 'New Cover Request',
+          message: `${employee?.firstName} ${employee?.lastName} requested you to cover their ${leaveType} leave from ${start.toLocaleDateString()} to ${end.toLocaleDateString()}`,
+          senderId: userId,
+          relatedId: leave.id,
+        },
+      });
+    } else {
+      // For official leave, notify admin directly
+      // Get all admins
+      const admins = await prisma.user.findMany({
+        where: { role: 'ADMIN' },
+        select: { id: true },
+      });
+
+      // Create notifications for all admins
+      await Promise.all(
+        admins.map((admin) =>
+          prisma.notification.create({
+            data: {
+              userId: admin.id,
+              type: 'LEAVE_REQUEST',
+              title: 'New Official Leave Request',
+              message: `${employee?.firstName} ${employee?.lastName} has requested official leave from ${start.toLocaleDateString()} to ${end.toLocaleDateString()}`,
+              senderId: userId,
+              relatedId: leave.id,
+            },
+          })
+        )
+      );
+    }
 
     // If this is a No Pay leave, notify the employee
     if (isNoPay) {
@@ -618,7 +655,9 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json({
-      message: 'Leave request submitted successfully',
+      message: leaveTypeUpper === 'OFFICIAL' 
+        ? 'Official leave request submitted successfully. Your request will be reviewed by admin.'
+        : 'Leave request submitted successfully',
       leave: {
         id: leave.id,
         status: leave.status,

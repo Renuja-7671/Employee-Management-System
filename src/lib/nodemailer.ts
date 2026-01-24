@@ -45,6 +45,27 @@ export async function verifyEmailConfig() {
   }
 }
 
+// Helper function to add anti-spam headers to email options
+export function addEmailHeaders(mailOptions: any) {
+  const appName = process.env.NEXT_PUBLIC_APP_NAME || 'Employee Management System';
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://your-domain.com';
+  
+  return {
+    ...mailOptions,
+    headers: {
+      'X-Mailer': appName,
+      'X-Priority': '3',
+      'X-MSMail-Priority': 'Normal',
+      'Importance': 'Normal',
+      'List-Unsubscribe': `<${appUrl}/unsubscribe>`,
+      'Precedence': 'bulk',
+      ...(mailOptions.headers || {}),
+    },
+    // Add Reply-To if not set
+    replyTo: mailOptions.replyTo || process.env.EMAIL_USER,
+  };
+}
+
 // Send birthday email
 export async function sendBirthdayEmail(
   recipientEmail: string,
