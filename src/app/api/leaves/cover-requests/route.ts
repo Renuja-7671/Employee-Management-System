@@ -14,10 +14,14 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch pending cover requests where the user is the cover employee
+    // Exclude expired requests (expiresAt < NOW) as those no longer block the cover employee
     const coverRequests = await prisma.coverRequest.findMany({
       where: {
         coverEmployeeId: userId,
         status: 'PENDING',
+        expiresAt: {
+          gt: new Date(), // Only show non-expired cover requests
+        },
       },
       include: {
         Leave: {

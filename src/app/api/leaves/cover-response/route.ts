@@ -70,7 +70,10 @@ export async function POST(request: NextRequest) {
     // Check if cover request has expired
     if (new Date() > leave.CoverRequest.expiresAt) {
       return NextResponse.json(
-        { error: 'This cover request has expired' },
+        { 
+          error: 'This cover request has expired (24-hour limit exceeded). You are no longer assigned to cover this leave and are now available for other cover requests.',
+          expired: true
+        },
         { status: 400 }
       );
     }

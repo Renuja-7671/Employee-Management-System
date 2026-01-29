@@ -82,9 +82,13 @@ export async function GET(request: NextRequest) {
     );
 
     // Get employees who have pending cover requests that overlap with the requested period
+    // Exclude expired cover requests (expiresAt < NOW) so those employees become available again
     const employeesWithPendingCoverRequests = await prisma.coverRequest.findMany({
       where: {
         status: 'PENDING',
+        expiresAt: {
+          gt: new Date(), // Only include non-expired cover requests
+        },
         Leave: {
           OR: [
             // Leave that starts during the requested period
@@ -121,6 +125,7 @@ export async function GET(request: NextRequest) {
       },
       select: {
         coverEmployeeId: true,
+        expiresAt: true,
         Leave: {
           select: {
             startDate: true,

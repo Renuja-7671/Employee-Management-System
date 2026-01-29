@@ -65,15 +65,36 @@ export async function GET(request: NextRequest) {
             employeeId: true,
           },
         },
+        CoverRequest: {
+          select: {
+            status: true,
+            expiresAt: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
       },
     });
 
+    // Filter out leaves with expired cover requests (PENDING_COVER status with expired CoverRequest)
+    const activeLeaves = leaves.filter((leave) => {
+      // If leave has a cover request
+      if (leave.CoverRequest) {
+        // If cover request is PENDING and expired, filter it out
+        if (
+          leave.CoverRequest.status === 'PENDING' &&
+          new Date() > leave.CoverRequest.expiresAt
+        ) {
+          return false; // Don't show expired requests
+        }
+      }
+      return true; // Show all other leaves
+    });
+
     // For each leave request, check if the employee is serving as a cover employee
     const leavesWithCoverInfo = await Promise.all(
-      leaves.map(async (leave) => {
+      activeLeaves.map(async (leave) => {
         // Find all approved leaves where this employee is the cover employee
         // and the dates overlap with this leave request
         const coveringDuties = await prisma.leave.findMany({

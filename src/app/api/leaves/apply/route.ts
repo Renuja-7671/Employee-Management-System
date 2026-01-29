@@ -543,9 +543,9 @@ export async function POST(request: NextRequest) {
 
     // Only create cover request for non-official leaves
     if (leaveTypeUpper !== 'OFFICIAL') {
-      // Create cover request with 12-hour expiry
+      // Create cover request with 24-hour expiry
       const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + 12);
+      expiresAt.setHours(expiresAt.getHours() + 24);
 
       await prisma.coverRequest.create({
         data: {

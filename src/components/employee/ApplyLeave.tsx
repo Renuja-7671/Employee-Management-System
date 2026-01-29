@@ -774,7 +774,7 @@ export const ApplyLeave = memo(function ApplyLeave({ user, onSuccess }: ApplyLea
                 </Select>
                 <p className="text-xs text-gray-500">
                   {employees.length > 0
-                    ? "The cover employee must approve your request within 12 hours"
+                    ? "The cover employee must approve your request within 24 hours"
                     : "There are no other employees in the system"}
                 </p>
               </div>
@@ -797,7 +797,7 @@ export const ApplyLeave = memo(function ApplyLeave({ user, onSuccess }: ApplyLea
                 <div className="text-[10px] sm:text-xs text-gray-700 min-w-0">
                   <p className="font-semibold">Important: Your leave request will go through two approval stages:</p>
                   <ol className="list-decimal list-inside mt-1 space-y-1">
-                    <li>Cover employee must approve within 12 hours</li>
+                    <li>Cover employee must approve within 24 hours</li>
                     <li>Admin will then review and approve/decline your request</li>
                   </ol>
                 </div>
