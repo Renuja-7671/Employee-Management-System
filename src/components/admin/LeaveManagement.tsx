@@ -92,23 +92,6 @@ export function LeaveManagement() {
   const [endDate, setEndDate] = useState<string>(currentMonth.end);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('all');
 
-  useEffect(() => {
-    // Get current admin info from localStorage
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      const user = JSON.parse(userStr);
-      setCurrentAdminId(user.id);
-      setCurrentAdminType(user.adminType || null);
-    }
-
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    // Refetch data when filters change
-    fetchData();
-  }, [startDate, endDate, selectedEmployeeId]);
-
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -143,6 +126,25 @@ export function LeaveManagement() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // Get current admin info from localStorage
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      setCurrentAdminId(user.id);
+      setCurrentAdminType(user.adminType || null);
+    }
+
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    // Refetch data when filters change
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startDate, endDate, selectedEmployeeId]);
 
   const getEmployeeName = (userId: string | null | undefined) => {
     if (!userId) return 'Unknown';
@@ -242,6 +244,7 @@ export function LeaveManagement() {
       'Status',
       'Applied Date',
       'Cover Employee',
+      'Reason',
     ];
     const rows = filteredLeaves.map((leave) => {
       const employee = employees.find(e => e.id === leave.userId);
@@ -259,6 +262,7 @@ export function LeaveManagement() {
         leave.status,
         new Date(leave.createdAt).toLocaleDateString(),
         coverEmployee ? `${coverEmployee.name}` : 'N/A',
+        leave.reason || 'N/A',
       ];
     });
 
@@ -282,6 +286,65 @@ export function LeaveManagement() {
     a.click();
     window.URL.revokeObjectURL(url);
     toast.success(`Exported ${filteredLeaves.length} leave requests`);
+  };
+
+  const exportOfficialLeavesCSV = () => {
+    // Filter only OFFICIAL leave type
+    const officialLeaves = filteredLeaves.filter(leave => leave.leaveType === 'OFFICIAL');
+
+    if (officialLeaves.length === 0) {
+      toast.error('No official leaves found for the selected date range');
+      return;
+    }
+
+    const headers = [
+      'Employee',
+      'Employee ID',
+      'Leave Type',
+      'Start Date',
+      'End Date',
+      'Days',
+      'Status',
+      'Applied Date',
+      'Reason',
+    ];
+
+    const rows = officialLeaves.map((leave) => {
+      const employee = employees.find(e => e.id === leave.userId);
+
+      return [
+        getEmployeeName(leave.userId),
+        employee?.employeeId || 'N/A',
+        leave.leaveType,
+        leave.startDate,
+        leave.endDate,
+        leave.days,
+        leave.status,
+        new Date(leave.createdAt).toLocaleDateString(),
+        leave.reason || 'N/A',
+      ];
+    });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) => row.map(cell => `"${cell}"`).join(',')),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+
+    // Create filename with filter details
+    const employeeName = selectedEmployeeId !== 'all'
+      ? employees.find(e => e.id === selectedEmployeeId)?.name.replace(/\s+/g, '_')
+      : 'All';
+    const filename = `official_leaves_${employeeName}_${startDate}_to_${endDate}.csv`;
+
+    a.download = filename;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    toast.success(`Exported ${officialLeaves.length} official leave requests`);
   };
 
   const filteredLeaves =
@@ -396,10 +459,16 @@ export function LeaveManagement() {
               Showing {filteredLeaves.length} leave{filteredLeaves.length !== 1 ? 's' : ''}
               {selectedEmployeeId !== 'all' && ` for ${employees.find(e => e.id === selectedEmployeeId)?.name}`}
             </span>
-            <Button variant="outline" size="sm" onClick={exportToCSV}>
-              <Download className="h-4 w-4 mr-2" />
-              Export CSV
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={exportToCSV}>
+                <Download className="h-4 w-4 mr-2" />
+                Export All
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportOfficialLeavesCSV}>
+                <Download className="h-4 w-4 mr-2" />
+                Export Official Leaves
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
