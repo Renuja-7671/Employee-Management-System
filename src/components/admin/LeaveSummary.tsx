@@ -224,20 +224,56 @@ export default function LeaveSummary() {
         7: { cellWidth: 16 },
         8: { cellWidth: 20 },
       },
+      didDrawPage: () => {
+        // Add page numbers
+        const pageCount = doc.getNumberOfPages();
+        const currentPage = (doc as any).internal.getCurrentPageInfo().pageNumber;
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(
+          `Page ${currentPage} of ${pageCount}`,
+          pageWidth / 2,
+          doc.internal.pageSize.height - 10,
+          { align: 'center' }
+        );
+      },
     });
 
     // Add leave type distribution after the table
     const finalY = (doc as any).lastAutoTable.finalY || 105;
+    const pageHeight = doc.internal.pageSize.height;
+    
+    // Check if we need a new page (if less than 60 units from bottom)
+    let currentY = finalY + 15;
+    if (currentY > pageHeight - 60) {
+      doc.addPage();
+      currentY = 20; // Start from top of new page
+    }
+    
     doc.setFontSize(14);
     doc.setTextColor(59, 130, 246);
-    doc.text('Leave Distribution by Type:', 14, finalY + 15);
+    doc.text('Leave Distribution by Type:', 14, currentY);
 
     doc.setFontSize(10);
     doc.setTextColor(0, 0, 0);
-    doc.text(`Annual: ${companyStats?.leaveTypeDistribution.ANNUAL || 0} days`, 20, finalY + 23);
-    doc.text(`Casual: ${companyStats?.leaveTypeDistribution.CASUAL || 0} days`, 20, finalY + 29);
-    doc.text(`Medical: ${companyStats?.leaveTypeDistribution.MEDICAL || 0} days`, 20, finalY + 35);
-    doc.text(`Official: ${companyStats?.leaveTypeDistribution.OFFICIAL || 0} days`, 20, finalY + 41);
+    doc.text(`Annual: ${companyStats?.leaveTypeDistribution.ANNUAL || 0} days`, 20, currentY + 8);
+    doc.text(`Casual: ${companyStats?.leaveTypeDistribution.CASUAL || 0} days`, 20, currentY + 14);
+    doc.text(`Medical: ${companyStats?.leaveTypeDistribution.MEDICAL || 0} days`, 20, currentY + 20);
+    doc.text(`Official: ${companyStats?.leaveTypeDistribution.OFFICIAL || 0} days`, 20, currentY + 26);
+
+    // Add page numbers to all pages
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(
+        `Page ${i} of ${totalPages}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: 'center' }
+      );
+    }
 
     // Save PDF
     doc.save(`Leave_Summary_Report_${year}.pdf`);

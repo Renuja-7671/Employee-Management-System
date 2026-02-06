@@ -461,20 +461,42 @@ export function EmployeeProfiles() {
         fillColor: [245, 247, 250],
       },
       margin: { top: 60, left: 5, right: 5 },
+      didDrawPage: () => {
+        // Add page numbers on each page as table is drawn
+        const currentPage = (doc as any).internal.getCurrentPageInfo().pageNumber;
+        const totalPages = doc.getNumberOfPages();
+        doc.setFontSize(9);
+        doc.setTextColor(150, 150, 150);
+        doc.text(
+          `Page ${currentPage} of ${totalPages}`,
+          pageWidth / 2,
+          doc.internal.pageSize.height - 10,
+          { align: 'center' }
+        );
+      },
     });
 
     // Add footer with additional information
     const finalY = (doc as any).lastAutoTable.finalY || 65;
+    const pageHeight = doc.internal.pageSize.height;
+    
+    // Check if we need a new page (if less than 40 units from bottom)
+    let currentY = finalY + 10;
+    if (currentY > pageHeight - 40) {
+      doc.addPage();
+      currentY = 20; // Start from top of new page
+    }
+    
     doc.setFontSize(9);
     doc.setTextColor(100, 100, 100);
-    doc.text('Notes:', 14, finalY + 10);
+    doc.text('Notes:', 14, currentY);
     doc.setFontSize(8);
-    doc.text('• This report contains comprehensive details of all active employees including personal, contact, and employment information', 14, finalY + 16);
-    doc.text('• Includes full name, name with initials, NIC, email, phone, position, department, residential address, emergency contact, birthday, and joining date', 14, finalY + 21);
-    doc.text('• This is a confidential document - please handle with care and follow data protection guidelines', 14, finalY + 26);
+    doc.text('• This report contains comprehensive details of all active employees including personal, contact, and employment information', 14, currentY + 6);
+    doc.text('• Includes full name, name with initials, NIC, email, phone, position, department, residential address, emergency contact, birthday, and joining date', 14, currentY + 11);
+    doc.text('• This is a confidential document - please handle with care and follow data protection guidelines', 14, currentY + 16);
 
-    // Add page numbers if multiple pages
-    const pageCount = (doc as any).internal.getNumberOfPages();
+    // Update page numbers on all pages after table is complete
+    const pageCount = doc.getNumberOfPages();
     doc.setFontSize(9);
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);

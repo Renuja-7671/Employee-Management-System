@@ -35,9 +35,9 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Get today's date range (start and end of day)
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // Get today's date range (start and end of day) in UTC
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
@@ -64,20 +64,63 @@ export async function GET(request: NextRequest) {
     // Count present employees (those who checked in)
     const presentCount = todayAttendance.length;
 
-    // Get employees on approved leave today
+    // Get employees on leave today
+    // Include leaves where:
+    // 1. Status is APPROVED (admin approved), OR
+    // 2. Status is PENDING_ADMIN (cover employee approved, waiting for admin), OR
+    // 3. Leave type is OFFICIAL and status is PENDING_ADMIN (no cover employee needed)
     const employeesOnLeave = await prisma.leave.findMany({
       where: {
-        status: 'APPROVED',
-        startDate: {
-          lte: today,
-        },
-        endDate: {
-          gte: today,
-        },
+        // Check if today falls within the leave period
+        AND: [
+          {
+            startDate: {
+              lte: tomorrow, // Leave starts on or before tomorrow
+            },
+          },
+          {
+            endDate: {
+              gte: today, // Leave ends on or after today
+            },
+          },
+        ],
+        OR: [
+          // Approved by admin
+          { status: 'APPROVED' },
+          // Cover employee approved, waiting for admin (work is already delegated)
+          { 
+            status: 'PENDING_ADMIN',
+            leaveType: { not: 'OFFICIAL' }, // Non-official leaves must have cover approval
+          },
+          // Official leaves don't need cover employee approval
+          {
+            status: 'PENDING_ADMIN',
+            leaveType: 'OFFICIAL',
+          },
+        ],
       },
       select: {
+        id: true,
         employeeId: true,
+        leaveType: true,
+        status: true,
+        startDate: true,
+        endDate: true,
       },
+    });
+
+    console.log('[ATTENDANCE_TODAY] Debug info:', {
+      todayDate: today.toISOString(),
+      tomorrowDate: tomorrow.toISOString(),
+      totalLeaves: employeesOnLeave.length,
+      leaves: employeesOnLeave.map(l => ({
+        id: l.id,
+        employeeId: l.employeeId,
+        type: l.leaveType,
+        status: l.status,
+        startDate: l.startDate,
+        endDate: l.endDate,
+      })),
     });
 
     const onLeaveCount = employeesOnLeave.length;
