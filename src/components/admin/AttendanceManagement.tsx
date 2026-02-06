@@ -394,8 +394,9 @@ export function AttendanceManagement() {
       stats.totalLateMinutes += calculateLateMinutes(att.checkIn, att.date, att.isWeekend);
     });
 
-    // Calculate approved leave days for each employee in the date range
-    employees.forEach(emp => {
+    // Calculate approved leave days for each ACTIVE employee in the date range
+    const activeEmployees = employees.filter(emp => emp.isActive);
+    activeEmployees.forEach(emp => {
       const employeeLeaves = leaves.filter(leave =>
         leave.employeeId === emp.id &&
         leave.status === 'APPROVED' &&
@@ -469,14 +470,22 @@ export function AttendanceManagement() {
     doc.setTextColor(59, 130, 246);
     doc.text('Employee Attendance Details', 14, 104);
 
-    const tableData = Array.from(employeeStats.values()).map(emp => [
-      emp.employeeId,
-      emp.name,
-      emp.workedDays.toString(),
-      emp.approvedLeaveDays.toString(),
-      emp.totalLateMinutes.toString(),
-      emp.totalLateMinutes > 60 ? `EXCEEDED (${emp.totalLateMinutes - 60} min)` : 'WITHIN LIMIT',
-    ]);
+    // Filter to only include active employees in the table
+    const activeEmployeeIds = new Set(activeEmployees.map(emp => emp.id));
+    const tableData = Array.from(employeeStats.values())
+      .filter(emp => {
+        // Find the employee and check if active
+        const employee = employees.find(e => e.employeeId === emp.employeeId);
+        return employee && activeEmployeeIds.has(employee.id);
+      })
+      .map(emp => [
+        emp.employeeId,
+        emp.name,
+        emp.workedDays.toString(),
+        emp.approvedLeaveDays.toString(),
+        emp.totalLateMinutes.toString(),
+        emp.totalLateMinutes > 60 ? `EXCEEDED (${emp.totalLateMinutes - 60} min)` : 'WITHIN LIMIT',
+      ]);
 
     autoTable(doc, {
       startY: 111,
@@ -493,19 +502,56 @@ export function AttendanceManagement() {
         4: { cellWidth: 25 },
         5: { cellWidth: 30 },
       },
+      didDrawPage: () => {
+        // Add page numbers on each page as table is drawn
+        const currentPage = (doc as any).internal.getCurrentPageInfo().pageNumber;
+        const totalPages = doc.getNumberOfPages();
+        doc.setFontSize(9);
+        doc.setTextColor(150, 150, 150);
+        doc.text(
+          `Page ${currentPage} of ${totalPages}`,
+          pageWidth / 2,
+          doc.internal.pageSize.height - 10,
+          { align: 'center' }
+        );
+      },
     });
 
     // Add footer notes
     const finalY = (doc as any).lastAutoTable.finalY || 105;
+    const pageHeight = doc.internal.pageSize.height;
+    
+    // Check if we need a new page (if less than 60 units from bottom)
+    let currentY = finalY + 15;
+    if (currentY > pageHeight - 60) {
+      doc.addPage();
+      currentY = 20; // Start from top of new page
+    }
+    
     doc.setFontSize(10);
     doc.setTextColor(100, 100, 100);
-    doc.text('Notes:', 14, finalY + 15);
+    doc.text('Notes:', 14, currentY);
     doc.setFontSize(9);
-    doc.text('• Late minutes are calculated based on 8:30 AM start time', 14, finalY + 22);
-    doc.text('• Sundays and company holidays (Poya & Mercantile) are excluded from late calculations', 14, finalY + 28);
-    doc.text('• Each employee has 60 late minutes allowance per month', 14, finalY + 34);
-    doc.text('• EXCEEDED indicates employee exceeded late minutes allowance', 14, finalY + 40);
-    doc.text('• WITHIN LIMIT indicates employee within late minutes allowance', 14, finalY + 46);
+    doc.text('• Late minutes are calculated based on 8:30 AM start time', 14, currentY + 7);
+    doc.text('• Sundays and company holidays (Poya & Mercantile) are excluded from late calculations', 14, currentY + 13);
+    doc.text('• Each employee has 60 late minutes allowance per month', 14, currentY + 19);
+    doc.text('• EXCEEDED indicates employee exceeded late minutes allowance', 14, currentY + 25);
+    doc.text('• WITHIN LIMIT indicates employee within late minutes allowance', 14, currentY + 31);
+    doc.text('• Only active employees are included in this report', 14, currentY + 37);
+
+    // Update page numbers on all pages after table is complete
+    const pageCount = doc.getNumberOfPages();
+    doc.setFontSize(9);
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setTextColor(150, 150, 150);
+      doc.text(
+        `Page ${i} of ${pageCount}`,
+        pageWidth / 2,
+        doc.internal.pageSize.height - 10,
+        { align: 'center' }
+      );
+    }
 
     // Save PDF
     doc.save(`Attendance_Report_${startDate}_to_${endDate}.pdf`);
