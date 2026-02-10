@@ -90,6 +90,7 @@ export async function POST(request: NextRequest) {
       coverEmployeeId,
       medicalCertUrl,
       numberOfDays,
+      halfDayType,
     } = body;
 
     // Validate required fields
@@ -532,6 +533,7 @@ export async function POST(request: NextRequest) {
         medicalCertPath: medicalCertUrl || null,
         status: leaveTypeUpper === 'OFFICIAL' ? 'PENDING_ADMIN' : 'PENDING_COVER',
         isNoPay: isNoPay,
+        halfDayType: halfDayType || null, // Store half-day type for official leaves
       },
     });
 

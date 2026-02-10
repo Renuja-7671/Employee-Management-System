@@ -37,6 +37,7 @@ export const ApplyLeave = memo(function ApplyLeave({ user, onSuccess }: ApplyLea
     coverEmployeeId: '',
     medicalCertUrl: '',
     isHalfDay: false,
+    halfDayType: '', // For official leave: 'FIRST_HALF' or 'SECOND_HALF'
   });
   const [medicalCertFile, setMedicalCertFile] = useState<File | null>(null);
   const [publicHolidays, setPublicHolidays] = useState<Date[]>([]);
@@ -255,6 +256,16 @@ export const ApplyLeave = memo(function ApplyLeave({ user, onSuccess }: ApplyLea
       ];
     }
 
+    if (formData.leaveType === 'official') {
+      return [
+        { value: 0.5, label: 'First Half', halfDayType: 'FIRST_HALF' },
+        { value: 0.5, label: 'Second Half', halfDayType: 'SECOND_HALF' },
+        { value: 1, label: '1 day' },
+        { value: 2, label: '2 days' },
+        { value: 3, label: '3 days' },
+      ];
+    }
+
     // For other leave types, return normal day options
     return Array.from({ length: getMaxDays() }, (_, i) => ({
       value: i + 1,
@@ -448,6 +459,7 @@ export const ApplyLeave = memo(function ApplyLeave({ user, onSuccess }: ApplyLea
           coverEmployeeId: '',
           medicalCertUrl: '',
           isHalfDay: false,
+          halfDayType: '',
         });
         setMedicalCertFile(null);
         onSuccess();
@@ -566,16 +578,35 @@ export const ApplyLeave = memo(function ApplyLeave({ user, onSuccess }: ApplyLea
               <div className="space-y-2">
                 <Label htmlFor="numberOfDays">Number of Days *</Label>
                 <Select
-                  value={formData.numberOfDays.toString()}
-                  onValueChange={(value) => setFormData({ ...formData, numberOfDays: parseFloat(value) })}
+                  value={formData.halfDayType ? `${formData.numberOfDays}-${formData.halfDayType}` : formData.numberOfDays.toString()}
+                  onValueChange={(value) => {
+                    // Check if value contains halfDayType (format: "0.5-FIRST_HALF")
+                    const parts = value.split('-');
+                    if (parts.length > 1) {
+                      setFormData({ 
+                        ...formData, 
+                        numberOfDays: parseFloat(parts[0]),
+                        halfDayType: parts[1]
+                      });
+                    } else {
+                      setFormData({ 
+                        ...formData, 
+                        numberOfDays: parseFloat(value),
+                        halfDayType: ''
+                      });
+                    }
+                  }}
                   required
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select number of days" />
                   </SelectTrigger>
                   <SelectContent>
-                    {getDayOptions().map((option) => (
-                      <SelectItem key={option.value} value={option.value.toString()}>
+                    {getDayOptions().map((option, index) => (
+                      <SelectItem 
+                        key={option.halfDayType ? `${option.value}-${option.halfDayType}` : `${option.value}-${index}`} 
+                        value={option.halfDayType ? `${option.value}-${option.halfDayType}` : option.value.toString()}
+                      >
                         {option.label}
                       </SelectItem>
                     ))}

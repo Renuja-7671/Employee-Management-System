@@ -92,6 +92,7 @@ export async function GET(request: NextRequest) {
       'Start Date',
       'End Date',
       'Total Days',
+      'Half Day Type',
       'Status',
       'Applied Date',
       'Reason',
@@ -103,6 +104,14 @@ export async function GET(request: NextRequest) {
       const startDateStr = new Date(leave.startDate).toISOString().split('T')[0];
       const endDateStr = new Date(leave.endDate).toISOString().split('T')[0];
       const appliedDate = new Date(leave.createdAt).toLocaleDateString();
+      
+      // Format half-day type for display
+      let halfDayDisplay = 'N/A';
+      if (leave.halfDayType === 'FIRST_HALF') {
+        halfDayDisplay = 'First Half';
+      } else if (leave.halfDayType === 'SECOND_HALF') {
+        halfDayDisplay = 'Second Half';
+      }
 
       return [
         employeeName,
@@ -111,6 +120,7 @@ export async function GET(request: NextRequest) {
         startDateStr,
         endDateStr,
         leave.totalDays.toString(),
+        halfDayDisplay,
         leave.status,
         appliedDate,
         leave.reason || 'N/A',

@@ -42,6 +42,15 @@ import {
 import { toast } from 'sonner';
 import { getLeaves, approveLeave, declineLeave, Leave as LeaveAPI } from '@/lib/api/leaves';
 import { getEmployees, Employee as EmployeeAPI } from '@/lib/api/employees';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+
+// Extend jsPDF type to include autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: typeof autoTable;
+  }
+}
 
 interface CoveringDuty {
   employeeName: string;
@@ -57,6 +66,7 @@ interface Leave extends LeaveAPI {
   days: number;
   medicalCertUrl?: string | null;
   coveringDuties?: CoveringDuty[];
+  halfDayType?: string | null;
 }
 
 interface Employee extends EmployeeAPI {
@@ -241,6 +251,7 @@ export function LeaveManagement() {
       'Start Date',
       'End Date',
       'Days',
+      'Half Day Type',
       'Status',
       'Applied Date',
       'Cover Employee',
@@ -252,6 +263,14 @@ export function LeaveManagement() {
         ? employees.find(e => e.id === leave.coverEmployeeId)
         : null;
 
+      // Format half-day type for display
+      let halfDayDisplay = 'N/A';
+      if (leave.halfDayType === 'FIRST_HALF') {
+        halfDayDisplay = 'First Half';
+      } else if (leave.halfDayType === 'SECOND_HALF') {
+        halfDayDisplay = 'Second Half';
+      }
+
       return [
         getEmployeeName(leave.userId),
         employee?.employeeId || 'N/A',
@@ -259,6 +278,7 @@ export function LeaveManagement() {
         leave.startDate,
         leave.endDate,
         leave.days,
+        halfDayDisplay,
         leave.status,
         new Date(leave.createdAt).toLocaleDateString(),
         coverEmployee ? `${coverEmployee.name}` : 'N/A',
@@ -304,6 +324,7 @@ export function LeaveManagement() {
       'Start Date',
       'End Date',
       'Days',
+      'Half Day Type',
       'Status',
       'Applied Date',
       'Reason',
@@ -312,6 +333,14 @@ export function LeaveManagement() {
     const rows = officialLeaves.map((leave) => {
       const employee = employees.find(e => e.id === leave.userId);
 
+      // Format half-day type for display
+      let halfDayDisplay = 'N/A';
+      if (leave.halfDayType === 'FIRST_HALF') {
+        halfDayDisplay = 'First Half';
+      } else if (leave.halfDayType === 'SECOND_HALF') {
+        halfDayDisplay = 'Second Half';
+      }
+
       return [
         getEmployeeName(leave.userId),
         employee?.employeeId || 'N/A',
@@ -319,6 +348,7 @@ export function LeaveManagement() {
         leave.startDate,
         leave.endDate,
         leave.days,
+        halfDayDisplay,
         leave.status,
         new Date(leave.createdAt).toLocaleDateString(),
         leave.reason || 'N/A',
@@ -345,6 +375,143 @@ export function LeaveManagement() {
     a.click();
     window.URL.revokeObjectURL(url);
     toast.success(`Exported ${officialLeaves.length} official leave requests`);
+  };
+
+  const exportToPDF = () => {
+    if (filteredLeaves.length === 0) {
+      toast.error('No leave requests to export');
+      return;
+    }
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.width;
+    const pageHeight = doc.internal.pageSize.height;
+
+    // Add logo and company name header
+    const logoImg = new Image();
+    logoImg.src = '/images/logo-dark.png';
+
+    // Add logo (centered at top)
+    try {
+      doc.addImage(logoImg, 'PNG', pageWidth / 2 - 25, 10, 50, 20);
+    } catch (error) {
+      console.error('Error adding logo to PDF:', error);
+    }
+
+    // Add report title
+    doc.setFontSize(18);
+    doc.setTextColor(59, 130, 246);
+    doc.text('Leave Requests Report', pageWidth / 2, 42, { align: 'center' });
+
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Period: ${startDate} to ${endDate}`, pageWidth / 2, 50, { align: 'center' });
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 56, { align: 'center' });
+    doc.text(`Total Requests: ${filteredLeaves.length}`, pageWidth / 2, 62, { align: 'center' });
+
+    // Prepare table data
+    const tableData = filteredLeaves.map((leave) => {
+      const employee = employees.find(e => e.id === leave.userId);
+      const coverEmployee = leave.coverEmployeeId
+        ? employees.find(e => e.id === leave.coverEmployeeId)
+        : null;
+
+      // Format half-day type for display
+      let halfDayDisplay = '-';
+      if (leave.halfDayType === 'FIRST_HALF') {
+        halfDayDisplay = 'First Half';
+      } else if (leave.halfDayType === 'SECOND_HALF') {
+        halfDayDisplay = 'Second Half';
+      }
+
+      return [
+        employee?.employeeId || 'N/A',
+        getEmployeeName(leave.userId),
+        leave.leaveType,
+        new Date(leave.startDate).toLocaleDateString(),
+        new Date(leave.endDate).toLocaleDateString(),
+        leave.days.toString(),
+        halfDayDisplay,
+        leave.status,
+        coverEmployee ? coverEmployee.name : 'N/A',
+      ];
+    });
+
+    // Add table
+    autoTable(doc, {
+      startY: 70,
+      head: [['EMP ID', 'Name', 'Type', 'Start', 'End', 'Days', 'Half Day', 'Status', 'Cover']],
+      body: tableData,
+      theme: 'grid',
+      headStyles: { fillColor: [59, 130, 246], textColor: 255, fontSize: 8 },
+      styles: { fontSize: 7, cellPadding: 1.5 },
+      columnStyles: {
+        0: { cellWidth: 18 },  // EMP ID
+        1: { cellWidth: 30 },  // Name
+        2: { cellWidth: 20 },  // Type
+        3: { cellWidth: 22 },  // Start
+        4: { cellWidth: 22 },  // End
+        5: { cellWidth: 12 },  // Days
+        6: { cellWidth: 20 },  // Half Day
+        7: { cellWidth: 24 },  // Status
+        8: { cellWidth: 25 },  // Cover
+      },
+      didDrawPage: () => {
+        // Add page numbers
+        const pageCount = doc.getNumberOfPages();
+        const currentPage = (doc as any).internal.getCurrentPageInfo().pageNumber;
+        doc.setFontSize(10);
+        doc.setTextColor(100);
+        doc.text(
+          `Page ${currentPage} of ${pageCount}`,
+          pageWidth / 2,
+          pageHeight - 10,
+          { align: 'center' }
+        );
+      },
+    });
+
+    // Update page numbers on all pages after table completion
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(
+        `Page ${i} of ${totalPages}`,
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: 'center' }
+      );
+    }
+
+    // Add notes at the bottom of last page
+    const finalY = (doc as any).lastAutoTable.finalY || 70;
+    let currentY = finalY + 10;
+
+    // Check if we need a new page for notes
+    if (currentY > pageHeight - 40) {
+      doc.addPage();
+      currentY = 20;
+    }
+
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text('Notes:', 14, currentY);
+    currentY += 6;
+    doc.setFontSize(8);
+    doc.text('• Half Day Type shows "First Half" or "Second Half" for 0.5 day official leaves', 14, currentY);
+    currentY += 5;
+    doc.text('• Status: PENDING_ADMIN (awaiting approval), APPROVED, DECLINED, PENDING_COVER (awaiting cover)', 14, currentY);
+
+    // Save the PDF
+    const employeeName = selectedEmployeeId !== 'all'
+      ? employees.find(e => e.id === selectedEmployeeId)?.name.replace(/\s+/g, '_')
+      : 'All';
+    const filename = `leave_requests_${employeeName}_${startDate}_to_${endDate}.pdf`;
+    
+    doc.save(filename);
+    toast.success(`Exported ${filteredLeaves.length} leave requests as PDF`);
   };
 
   const filteredLeaves =
@@ -462,11 +629,15 @@ export function LeaveManagement() {
             <div className="flex gap-2">
               <Button variant="outline" size="sm" onClick={exportToCSV}>
                 <Download className="h-4 w-4 mr-2" />
-                Export All
+                Export CSV
               </Button>
               <Button variant="outline" size="sm" onClick={exportOfficialLeavesCSV}>
                 <Download className="h-4 w-4 mr-2" />
-                Export Official Leaves
+                Official CSV
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportToPDF} className="bg-teal-50 hover:bg-teal-100">
+                <FileText className="h-4 w-4 mr-2" />
+                Export PDF
               </Button>
             </div>
           </div>
@@ -526,7 +697,16 @@ export function LeaveManagement() {
                           {new Date(leave.endDate).toLocaleDateString()}
                         </div>
                       </TableCell>
-                      <TableCell>{leave.days}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <span>{leave.days}</span>
+                          {leave.halfDayType && (
+                            <span className="text-xs text-gray-500">
+                              {leave.halfDayType === 'FIRST_HALF' ? '(First Half)' : '(Second Half)'}
+                            </span>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell>
                         {leave.coverEmployeeId
                           ? getEmployeeName(leave.coverEmployeeId)

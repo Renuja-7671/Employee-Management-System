@@ -134,6 +134,7 @@ model Leave {
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @default(now()) @updatedAt
   isNoPay             Boolean       @default(false)
+  halfDayType         String?       // For official leave half days: 'FIRST_HALF' or 'SECOND_HALF'
   CoverRequest        CoverRequest?
   coverEmployee       User?         @relation("Leave_coverEmployeeIdToUser", fields: [coverEmployeeId], references: [id])
   employee            User          @relation("Leave_employeeIdToUser", fields: [employeeId], references: [id], onDelete: Cascade)

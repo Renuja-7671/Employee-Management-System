@@ -16,6 +16,7 @@ export interface Leave {
   cancellationReason?: string | null;
   createdAt: string;
   updatedAt: string;
+  halfDayType?: string | null;
 }
 
 export async function getLeaves(
