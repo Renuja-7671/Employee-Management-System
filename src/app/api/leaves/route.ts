@@ -2,9 +2,15 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { cleanupExpiredCoverRequests, hasExpiredCoverRequests } from '@/lib/cleanup-expired-covers';
 
 export async function GET(request: NextRequest) {
   try {
+    // Lazy cleanup: Remove expired cover requests before fetching leaves
+    if (await hasExpiredCoverRequests()) {
+      await cleanupExpiredCoverRequests();
+    }
+
     const { searchParams } = new URL(request.url);
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');

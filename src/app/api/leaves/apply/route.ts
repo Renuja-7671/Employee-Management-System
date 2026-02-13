@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { canApplyForLeaveType, getLeaveBalanceForEmployee } from '@/lib/leave-probation-utils';
+import { cleanupExpiredCoverRequests, hasExpiredCoverRequests } from '@/lib/cleanup-expired-covers';
 
 // Helper function to check if a date is a Sunday
 const isSunday = (date: Date): boolean => {
@@ -80,6 +81,11 @@ const calculateWorkingDays = async (startDate: Date, endDate: Date): Promise<num
 
 export async function POST(request: NextRequest) {
   try {
+    // Lazy cleanup: Remove expired cover requests before processing new leave application
+    if (await hasExpiredCoverRequests()) {
+      await cleanupExpiredCoverRequests();
+    }
+
     const body = await request.json();
     const {
       userId,
