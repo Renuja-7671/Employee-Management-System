@@ -91,10 +91,10 @@ export function EmployeeManagement() {
   const fetchEmployees = async () => {
     try {
       const data = await getEmployees();
-      // Transform employees data to include full name
+      // Transform employees data to include calling name
       const transformedEmployees = data.map(emp => ({
         ...emp,
-        name: `${emp.firstName} ${emp.lastName}`
+        name: emp.callingName || emp.fullName
       }));
       setEmployees(transformedEmployees);
     } catch (error) {

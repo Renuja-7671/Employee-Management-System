@@ -88,10 +88,10 @@ export function AttendanceManagement() {
       ]);
 
       setAttendance(attendanceResponse.attendance);
-      // Transform employees data to include full name
+      // Transform employees data to include calling name
       const transformedEmployees = employeesData.map(emp => ({
         ...emp,
-        name: `${emp.firstName} ${emp.lastName}`
+        name: emp.callingName || emp.fullName
       }));
       setEmployees(transformedEmployees);
 

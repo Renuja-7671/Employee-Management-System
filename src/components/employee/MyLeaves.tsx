@@ -58,7 +58,7 @@ export function MyLeaves({ user }: MyLeavesProps) {
   const getEmployeeName = (userId: string | null | undefined) => {
     if (!userId) return 'Unknown';
     const employee = employees.find(e => e.id === userId);
-    return employee ? `${employee.firstName} ${employee.lastName}` : 'Unknown';
+    return employee ? (employee.callingName || employee.fullName || `${employee.firstName} ${employee.lastName}`) : 'Unknown';
   };
 
   const handleCancelLeave = async (leaveId: string) => {
