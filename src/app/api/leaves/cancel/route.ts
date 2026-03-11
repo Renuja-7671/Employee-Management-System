@@ -21,9 +21,6 @@ export async function POST(request: NextRequest) {
         employeeId: true,
         status: true,
         coverEmployeeId: true,
-        leaveType: true,
-        totalDays: true,
-        isNoPay: true,
       },
     });
 
@@ -47,30 +44,6 @@ export async function POST(request: NextRequest) {
         { error: 'Only pending leave requests can be cancelled' },
         { status: 400 }
       );
-    }
-
-    // Restore the balance if it's not a No Pay leave and not Official (balance was deducted when applied)
-    if (!leave.isNoPay && leave.leaveType !== 'OFFICIAL') {
-      const leaveTypeMap: Record<string, string> = {
-        'ANNUAL': 'annual',
-        'CASUAL': 'casual',
-        'MEDICAL': 'medical',
-      };
-
-      const balanceField = leaveTypeMap[leave.leaveType];
-
-      if (balanceField) {
-        console.log(`[LEAVE] Restoring balance on cancellation - Type: ${leave.leaveType}, Field: ${balanceField}, Adding back: ${leave.totalDays}`);
-
-        await prisma.leaveBalance.update({
-          where: { employeeId: leave.employeeId },
-          data: {
-            [balanceField]: {
-              increment: leave.totalDays,
-            },
-          },
-        });
-      }
     }
 
     // Update leave status to CANCELLED

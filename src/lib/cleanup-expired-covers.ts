@@ -69,37 +69,13 @@ export async function cleanupExpiredCoverRequests() {
 
         console.log(`[LAZY-CLEANUP] Processing expired request for ${employee.firstName} ${employee.lastName} (Leave ID: ${leave.id})`);
 
-        // Restore the balance if it's not a No Pay leave and not Official (balance was deducted when applied)
-        if (!leave.isNoPay && leave.leaveType !== 'OFFICIAL') {
-          const leaveTypeMap: Record<string, string> = {
-            'ANNUAL': 'annual',
-            'CASUAL': 'casual',
-            'MEDICAL': 'medical',
-          };
-
-          const balanceField = leaveTypeMap[leave.leaveType];
-
-          if (balanceField) {
-            console.log(`[LAZY-CLEANUP] Restoring balance for expired request - Type: ${leave.leaveType}, Field: ${balanceField}, Adding back: ${leave.totalDays}`);
-
-            await prisma.leaveBalance.update({
-              where: { employeeId: leave.employeeId },
-              data: {
-                [balanceField]: {
-                  increment: leave.totalDays,
-                },
-              },
-            });
-          }
-        }
-
         // Create notification for the employee
         await prisma.notification.create({
           data: {
             userId: employee.id,
             type: 'SYSTEM_ALERT',
             title: '❌ Leave Request Expired',
-            message: `Your ${leave.leaveType.toLowerCase()} leave request (${new Date(leave.startDate).toLocaleDateString()} - ${new Date(leave.endDate).toLocaleDateString()}) has expired because ${coverEmployee?.firstName} ${coverEmployee?.lastName} did not respond within 24 hours. Your leave balance has been restored. Please reapply if you still need this leave.`,
+            message: `Your ${leave.leaveType.toLowerCase()} leave request (${new Date(leave.startDate).toLocaleDateString()} - ${new Date(leave.endDate).toLocaleDateString()}) has expired because ${coverEmployee?.firstName} ${coverEmployee?.lastName} did not respond within 24 hours. Please reapply if you still need this leave.`,
             relatedId: leave.id,
             isPinned: true,
           },

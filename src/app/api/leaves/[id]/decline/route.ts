@@ -51,50 +51,6 @@ export async function POST(
       );
     }
 
-    // Get the leave details first
-    const leaveToDecline = await prisma.leave.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        employeeId: true,
-        leaveType: true,
-        totalDays: true,
-        status: true,
-        isNoPay: true,
-      },
-    });
-
-    if (!leaveToDecline) {
-      return NextResponse.json(
-        { error: 'Leave not found' },
-        { status: 404 }
-      );
-    }
-
-    // Restore the balance if it's not a No Pay leave and not Official (balance was deducted when applied)
-    if (!leaveToDecline.isNoPay && leaveToDecline.leaveType !== 'OFFICIAL') {
-      const leaveTypeMap: Record<string, string> = {
-        'ANNUAL': 'annual',
-        'CASUAL': 'casual',
-        'MEDICAL': 'medical',
-      };
-
-      const balanceField = leaveTypeMap[leaveToDecline.leaveType];
-
-      if (balanceField) {
-        console.log(`[LEAVE] Restoring balance on decline - Type: ${leaveToDecline.leaveType}, Field: ${balanceField}, Adding back: ${leaveToDecline.totalDays}`);
-
-        await prisma.leaveBalance.update({
-          where: { employeeId: leaveToDecline.employeeId },
-          data: {
-            [balanceField]: {
-              increment: leaveToDecline.totalDays,
-            },
-          },
-        });
-      }
-    }
-
     const leave = await prisma.leave.update({
       where: { id },
       data: {

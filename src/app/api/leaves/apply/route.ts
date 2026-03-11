@@ -525,27 +525,6 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Deduct leave balance immediately when leave is applied (if not No Pay and not Official)
-    if (!isNoPay && leaveTypeUpper !== 'OFFICIAL') {
-      const leaveTypeMap: Record<string, string> = {
-        'ANNUAL': 'annual',
-        'CASUAL': 'casual',
-        'MEDICAL': 'medical',
-      };
-
-      const balanceField = leaveTypeMap[leaveTypeUpper];
-      const currentBalance = leaveBalance[balanceField as keyof typeof leaveBalance] as number;
-
-      console.log(`[LEAVE] Deducting balance immediately - Type: ${leaveTypeUpper}, Field: ${balanceField}, Current: ${currentBalance}, Deducting: ${totalDays}`);
-
-      await prisma.leaveBalance.update({
-        where: { employeeId: userId },
-        data: {
-          [balanceField]: currentBalance - totalDays,
-        },
-      });
-    }
-
     // Create leave request
     // Official leave goes directly to admin, others require cover employee approval
     const leave = await prisma.leave.create({

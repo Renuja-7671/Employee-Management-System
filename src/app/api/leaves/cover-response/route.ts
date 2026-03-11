@@ -120,31 +120,7 @@ export async function POST(request: NextRequest) {
         status: 'PENDING_ADMIN',
       });
     } else {
-      // DECLINED: Restore the balance first (if applicable)
-      if (!leave.isNoPay && leave.leaveType !== 'OFFICIAL') {
-        const leaveTypeMap: Record<string, string> = {
-          'ANNUAL': 'annual',
-          'CASUAL': 'casual',
-          'MEDICAL': 'medical',
-        };
-
-        const balanceField = leaveTypeMap[leave.leaveType];
-
-        if (balanceField) {
-          console.log(`[LEAVE] Restoring balance on cover decline - Type: ${leave.leaveType}, Field: ${balanceField}, Adding back: ${leave.totalDays}`);
-
-          await prisma.leaveBalance.update({
-            where: { employeeId: leave.employeeId },
-            data: {
-              [balanceField]: {
-                increment: leave.totalDays,
-              },
-            },
-          });
-        }
-      }
-
-      // Update cover request status to DECLINED
+      // DECLINED: Update cover request status to DECLINED
       await prisma.coverRequest.update({
         where: { id: leave.CoverRequest.id },
         data: {
