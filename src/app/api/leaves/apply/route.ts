@@ -334,6 +334,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate annual leave max 7 consecutive days per request
+    if (leaveTypeUpper === 'ANNUAL' && totalDays > 7) {
+      return NextResponse.json(
+        { error: 'Annual leave cannot exceed 7 consecutive days per request' },
+        { status: 400 }
+      );
+    }
+
     // Validate medical leave: only 0.5, 1, 1.5, 2, 2.5, or 3 days allowed
     if (leaveTypeUpper === 'MEDICAL') {
       const allowedDays = [0.5, 1, 1.5, 2, 2.5, 3];
@@ -345,82 +353,44 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate casual leave date range (2 days before current date to all future)
-    if (leaveTypeUpper === 'CASUAL') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const minDate = new Date(today);
-      minDate.setDate(today.getDate() - 2);
-
-      if (start < minDate) {
-        return NextResponse.json(
-          { error: 'Casual leave can only be applied for dates within 2 days before today or any future date' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Validate annual leave max 7 consecutive days per request
-    if (leaveTypeUpper === 'ANNUAL' && totalDays > 7) {
+    // Validate official leave max 3 days
+    if (leaveTypeUpper === 'OFFICIAL' && totalDays > 3) {
       return NextResponse.json(
-        { error: 'Annual leave cannot exceed 7 consecutive days per request' },
+        { error: 'Official leave cannot exceed 3 continuous days' },
         { status: 400 }
       );
     }
 
-    // Validate annual leave date range (7 days before current date to all future)
-    if (leaveTypeUpper === 'ANNUAL') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const minDate = new Date(today);
-      minDate.setDate(today.getDate() - 7);
+    // Validate leave date range based on month-based calendar logic
+    // Calendar opens from 1st of current month, full next month, and 3 days into month after next
+    // Example: March 30 -> Opens March 1 to April 3
+    // April 4 onwards -> Opens April 1 to May 3
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const currentDay = today.getDate();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
 
-      if (start < minDate) {
-        return NextResponse.json(
-          { error: 'Annual leave can only be applied for dates within 7 days before today or any future date' },
-          { status: 400 }
-        );
-      }
+    // Determine the min date based on current day
+    let minDate: Date;
+    if (currentDay >= 4) {
+      // On or after 4th, block previous month - open from 1st of current month
+      minDate = new Date(currentYear, currentMonth, 1);
+    } else {
+      // In days 1-3, previous month is still open - open from 1st of previous month
+      minDate = new Date(currentYear, currentMonth - 1, 1);
     }
 
-    // Validate official leave max 3 days and date range
-    if (leaveTypeUpper === 'OFFICIAL') {
-      if (totalDays > 3) {
-        return NextResponse.json(
-          { error: 'Official leave cannot exceed 3 continuous days' },
-          { status: 400 }
-        );
-      }
+    // Max date: 3 days into the month after next
+    const maxDate = new Date(currentYear, currentMonth + 2, 3);
 
-      // Validate date range: 3 days before to 3 days after current date
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const minDate = new Date(today);
-      minDate.setDate(today.getDate() - 3);
-      const maxDate = new Date(today);
-      maxDate.setDate(today.getDate() + 3);
-
-      if (start < minDate || start > maxDate) {
-        return NextResponse.json(
-          { error: 'Official leave can only be applied for dates within 3 days before or after today' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Validate medical leave date range (4 days before current date to all future)
-    if (leaveTypeUpper === 'MEDICAL') {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const minDate = new Date(today);
-      minDate.setDate(today.getDate() - 4);
-
-      if (start < minDate) {
-        return NextResponse.json(
-          { error: 'Medical leave can only be applied for dates within 4 days before today or any future date' },
-          { status: 400 }
-        );
-      }
+    if (start < minDate || start > maxDate) {
+      const minDateStr = minDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      const maxDateStr = maxDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      return NextResponse.json(
+        { error: `Leave can only be applied for dates between ${minDateStr} and ${maxDateStr}` },
+        { status: 400 }
+      );
     }
 
     // Validate medical certificate for medical leave (required if more than 1 day)

@@ -183,59 +183,33 @@ export const ApplyLeave = memo(function ApplyLeave({ user, onSuccess }: ApplyLea
   };
 
   // Get date range restrictions based on leave type
+  // Calendar logic: Opens from 1st of current month, full next month, and 3 days into month after next
+  // Example: March 30 -> Opens March 1 to April 3
+  // April 4 onwards -> Opens April 1 to May 3
   const getDateRestrictions = () => {
     const today = new Date();
+    const currentDay = today.getDate();
+    const currentMonth = today.getMonth();
+    const currentYear = today.getFullYear();
 
-    if (formData.leaveType === 'official') {
-      // Official leave: 3 days before and 3 days after current date
-      const minDate = new Date(today);
-      minDate.setDate(today.getDate() - 3);
-      const maxDate = new Date(today);
-      maxDate.setDate(today.getDate() + 3);
-
-      return {
-        min: minDate.toISOString().split('T')[0],
-        max: maxDate.toISOString().split('T')[0],
-      };
+    // Determine the start date (1st of current or previous month)
+    let minDate = new Date(currentYear, currentMonth, 1);
+    
+    // If we're on the 4th day or later of the current month, the previous month should be blocked
+    if (currentDay >= 4) {
+      // Block previous month, open from 1st of current month
+      minDate = new Date(currentYear, currentMonth, 1);
+    } else {
+      // We're in days 1-3, so previous month is still open (from its 1st)
+      minDate = new Date(currentYear, currentMonth - 1, 1);
     }
 
-    if (formData.leaveType === 'annual') {
-      // Annual leave: must be planned 7 days in advance (7 days after today)
-      const minDate = new Date(today);
-      minDate.setDate(today.getDate() + 7);
+    // Calculate max date: 3 days into the month after next
+    const monthAfterNext = new Date(currentYear, currentMonth + 2, 3);
 
-      return {
-        min: minDate.toISOString().split('T')[0],
-        max: undefined, // No max date for annual leave
-      };
-    }
-
-    if (formData.leaveType === 'casual') {
-      // Casual leave: 2 days before current date and all future dates
-      const minDate = new Date(today);
-      minDate.setDate(today.getDate() - 2);
-
-      return {
-        min: minDate.toISOString().split('T')[0],
-        max: undefined, // No max date for casual leave
-      };
-    }
-
-    if (formData.leaveType === 'medical') {
-      // Medical leave: 4 days before current date and all future dates
-      const minDate = new Date(today);
-      minDate.setDate(today.getDate() - 4);
-
-      return {
-        min: minDate.toISOString().split('T')[0],
-        max: undefined, // No max date for medical leave
-      };
-    }
-
-    // Other leave types: current date and future only
     return {
-      min: new Date().toISOString().split('T')[0],
-      max: undefined,
+      min: minDate.toISOString().split('T')[0],
+      max: monthAfterNext.toISOString().split('T')[0],
     };
   };
 
