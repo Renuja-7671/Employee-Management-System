@@ -193,23 +193,38 @@ export const ApplyLeave = memo(function ApplyLeave({ user, onSuccess }: ApplyLea
     const currentYear = today.getFullYear();
 
     // Determine the start date (1st of current or previous month)
-    let minDate = new Date(currentYear, currentMonth, 1);
+    let minYear = currentYear;
+    let minMonth = currentMonth;
     
     // If we're on the 4th day or later of the current month, the previous month should be blocked
-    if (currentDay >= 4) {
-      // Block previous month, open from 1st of current month
-      minDate = new Date(currentYear, currentMonth, 1);
-    } else {
+    if (currentDay < 4) {
       // We're in days 1-3, so previous month is still open (from its 1st)
-      minDate = new Date(currentYear, currentMonth - 1, 1);
+      minMonth = currentMonth - 1;
+      if (minMonth < 0) {
+        minMonth = 11;
+        minYear = currentYear - 1;
+      }
     }
 
     // Calculate max date: 3 days into the month after next
-    const monthAfterNext = new Date(currentYear, currentMonth + 2, 3);
+    let maxMonth = currentMonth + 2;
+    let maxYear = currentYear;
+    if (maxMonth > 11) {
+      maxMonth = maxMonth - 12;
+      maxYear = currentYear + 1;
+    }
+
+    // Format dates properly (YYYY-MM-DD) to avoid timezone issues
+    const formatDate = (year: number, month: number, day: number) => {
+      const d = new Date(year, month, day);
+      const month_pad = String(d.getMonth() + 1).padStart(2, '0');
+      const day_pad = String(d.getDate()).padStart(2, '0');
+      return `${d.getFullYear()}-${month_pad}-${day_pad}`;
+    };
 
     return {
-      min: minDate.toISOString().split('T')[0],
-      max: monthAfterNext.toISOString().split('T')[0],
+      min: formatDate(minYear, minMonth, 1),
+      max: formatDate(maxYear, maxMonth, 3),
     };
   };
 
@@ -526,26 +541,6 @@ export const ApplyLeave = memo(function ApplyLeave({ user, onSuccess }: ApplyLea
                   <SelectItem value="official">Official Leave</SelectItem>
                 </SelectContent>
               </Select>
-              {formData.leaveType === 'official' && (
-                <p className="text-xs text-purple-600 mt-1">
-                  Official leave can be applied for past 3 days or future 3 days, max 3 continuous days
-                </p>
-              )}
-              {formData.leaveType === 'annual' && (
-                <p className="text-xs text-blue-600 mt-1">
-                  Annual leave: max 7 consecutive days per request, must be planned at least 7 days in advance
-                </p>
-              )}
-              {formData.leaveType === 'casual' && (
-                <p className="text-xs text-green-600 mt-1">
-                  Casual leave: 0.5 day (half day) or 1 day only, can apply 2 days before today or any future date
-                </p>
-              )}
-              {formData.leaveType === 'medical' && (
-                <p className="text-xs text-orange-600 mt-1">
-                  Medical leave: 0.5, 1, 1.5, 2, 2.5, or 3 days only. Certificate required if more than 1 day. Can apply 4 days before today or any future date.
-                </p>
-              )}
             </div>
 
             {formData.leaveType && formData.leaveType !== 'medical' && (
@@ -627,26 +622,6 @@ export const ApplyLeave = memo(function ApplyLeave({ user, onSuccess }: ApplyLea
                   max={getDateRestrictions().max}
                   required
                 />
-                {formData.leaveType === 'official' && (
-                  <p className="text-xs text-gray-500">
-                    You can select dates from {new Date(new Date().setDate(new Date().getDate() - 3)).toLocaleDateString()} to {new Date(new Date().setDate(new Date().getDate() + 3)).toLocaleDateString()}
-                  </p>
-                )}
-                {formData.leaveType === 'annual' && (
-                  <p className="text-xs text-gray-500">
-                    You can select dates from {new Date(new Date().setDate(new Date().getDate() + 7)).toLocaleDateString()} onwards (7 days from today)
-                  </p>
-                )}
-                {formData.leaveType === 'casual' && (
-                  <p className="text-xs text-gray-500">
-                    You can select dates from {new Date(new Date().setDate(new Date().getDate() - 2)).toLocaleDateString()} onwards
-                  </p>
-                )}
-                {formData.leaveType === 'medical' && (
-                  <p className="text-xs text-gray-500">
-                    You can select dates from {new Date(new Date().setDate(new Date().getDate() - 4)).toLocaleDateString()} onwards
-                  </p>
-                )}
               </div>
             )}
 

@@ -879,6 +879,7 @@ export function EmployeeProfiles() {
                         <SelectItem value="PROCUREMENT">Procurement</SelectItem>
                         <SelectItem value="HR">Human Resources</SelectItem>
                         <SelectItem value="IT">IT</SelectItem>
+                        <SelectItem value="PROJECTS">Projects</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

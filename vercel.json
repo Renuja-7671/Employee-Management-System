@@ -8,8 +8,8 @@
       "schedule": "1 0 * * *"
     },
     {
-      "path": "/api/cron/sync-holidays",
-      "schedule": "0 0 1 * *"
+      "path": "/api/emails/monthly-leave-reminder/auto",
+      "schedule": "0 8 1 * *"
     }
   ]
 }

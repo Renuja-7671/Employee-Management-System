@@ -366,24 +366,39 @@ export async function POST(request: NextRequest) {
     // Example: March 30 -> Opens March 1 to April 3
     // April 4 onwards -> Opens April 1 to May 3
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
     const currentDay = today.getDate();
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
 
     // Determine the min date based on current day
-    let minDate: Date;
-    if (currentDay >= 4) {
-      // On or after 4th, block previous month - open from 1st of current month
-      minDate = new Date(currentYear, currentMonth, 1);
-    } else {
+    let minYear = currentYear;
+    let minMonth = currentMonth;
+    
+    if (currentDay < 4) {
       // In days 1-3, previous month is still open - open from 1st of previous month
-      minDate = new Date(currentYear, currentMonth - 1, 1);
+      minMonth = currentMonth - 1;
+      if (minMonth < 0) {
+        minMonth = 11;
+        minYear = currentYear - 1;
+      }
     }
 
     // Max date: 3 days into the month after next
-    const maxDate = new Date(currentYear, currentMonth + 2, 3);
+    let maxMonth = currentMonth + 2;
+    let maxYear = currentYear;
+    if (maxMonth > 11) {
+      maxMonth = maxMonth - 12;
+      maxYear = currentYear + 1;
+    }
 
+    // Create date objects properly
+    const minDate = new Date(minYear, minMonth, 1);
+    minDate.setHours(0, 0, 0, 0);
+    
+    const maxDate = new Date(maxYear, maxMonth, 3);
+    maxDate.setHours(23, 59, 59, 999);
+
+    // Compare dates (start should be after or equal to minDate)
     if (start < minDate || start > maxDate) {
       const minDateStr = minDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
       const maxDateStr = maxDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });

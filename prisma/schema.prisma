@@ -282,6 +282,7 @@ enum Department {
   PROCUREMENT
   HR
   IT
+  PROJECTS
 }
 
 enum DeviceType {
