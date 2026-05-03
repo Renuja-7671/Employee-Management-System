@@ -46,6 +46,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Delete the associated cover request (if exists) so the cover employee becomes available again
+    await prisma.coverRequest.deleteMany({
+      where: { leaveId: leaveId },
+    });
+
     // Update leave status to CANCELLED
     const updatedLeave = await prisma.leave.update({
       where: { id: leaveId },
