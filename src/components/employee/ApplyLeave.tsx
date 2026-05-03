@@ -744,7 +744,7 @@ export const ApplyLeave = memo(function ApplyLeave({ user, onSuccess }: ApplyLea
                     {employees.length > 0 ? (
                       employees.map((emp) => (
                         <SelectItem key={emp.id} value={emp.id}>
-                          {emp.firstName} {emp.lastName} ({emp.employeeId})
+                          {emp.fullName || emp.callingName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.employeeId} ({emp.employeeId})
                         </SelectItem>
                       ))
                     ) : (

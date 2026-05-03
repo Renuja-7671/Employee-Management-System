@@ -451,6 +451,8 @@ export async function POST(request: NextRequest) {
           select: {
             firstName: true,
             lastName: true,
+            fullName: true,
+            callingName: true,
           },
         },
       },
@@ -460,7 +462,7 @@ export async function POST(request: NextRequest) {
     // Medical leaves are ALWAYS allowed (employee cannot work if ill)
     if (coveringDuties.length > 0 && leaveTypeUpper !== 'MEDICAL') {
       const coveringFor = coveringDuties.map(
-        (duty) => `${duty.employee.firstName} ${duty.employee.lastName} (${new Date(duty.startDate).toLocaleDateString()} - ${new Date(duty.endDate).toLocaleDateString()})`
+        (duty) => `${duty.employee.fullName || duty.employee.callingName || `${duty.employee.firstName || ''} ${duty.employee.lastName || ''}`.trim()} (${new Date(duty.startDate).toLocaleDateString()} - ${new Date(duty.endDate).toLocaleDateString()})`
       ).join(', ');
 
       return NextResponse.json(
@@ -504,6 +506,8 @@ export async function POST(request: NextRequest) {
             id: true,
             firstName: true,
             lastName: true,
+            fullName: true,
+            callingName: true,
             employeeId: true,
           },
         },
@@ -531,7 +535,12 @@ export async function POST(request: NextRequest) {
     // Get employee details for notifications
     const employee = await prisma.user.findUnique({
       where: { id: userId },
-      select: { firstName: true, lastName: true },
+      select: { 
+        firstName: true, 
+        lastName: true,
+        fullName: true,
+        callingName: true,
+      },
     });
 
     // Only create cover request for non-official leaves
@@ -555,7 +564,7 @@ export async function POST(request: NextRequest) {
           userId: coverEmployeeId,
           type: 'COVER_REQUEST',
           title: 'New Cover Request',
-          message: `${employee?.firstName} ${employee?.lastName} requested you to cover their ${leaveType} leave from ${start.toLocaleDateString()} to ${end.toLocaleDateString()}`,
+          message: `${employee?.fullName || employee?.callingName || `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim()} requested you to cover their ${leaveType} leave from ${start.toLocaleDateString()} to ${end.toLocaleDateString()}`,
           senderId: userId,
           relatedId: leave.id,
         },
@@ -576,7 +585,7 @@ export async function POST(request: NextRequest) {
               userId: admin.id,
               type: 'LEAVE_REQUEST',
               title: 'New Official Leave Request',
-              message: `${employee?.firstName} ${employee?.lastName} has requested official leave from ${start.toLocaleDateString()} to ${end.toLocaleDateString()}`,
+              message: `${employee?.fullName || employee?.callingName || `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim()} has requested official leave from ${start.toLocaleDateString()} to ${end.toLocaleDateString()}`,
               senderId: userId,
               relatedId: leave.id,
             },
@@ -617,7 +626,7 @@ export async function POST(request: NextRequest) {
       // Create notifications for all admins about the conflict
       const conflictDetails = coveringForOthers.map(
         (originalLeave) =>
-          `${originalLeave.employee.firstName} ${originalLeave.employee.lastName} (${new Date(originalLeave.startDate).toLocaleDateString()} - ${new Date(originalLeave.endDate).toLocaleDateString()})`
+          `${originalLeave.employee.fullName || originalLeave.employee.callingName || `${originalLeave.employee.firstName || ''} ${originalLeave.employee.lastName || ''}`.trim()} (${new Date(originalLeave.startDate).toLocaleDateString()} - ${new Date(originalLeave.endDate).toLocaleDateString()})`
       ).join(', ');
 
       for (const admin of admins) {
@@ -626,7 +635,7 @@ export async function POST(request: NextRequest) {
             userId: admin.id,
             type: 'COVERING_DUTY_CONFLICT',
             title: '⚠️ Covering Duty Conflict Detected',
-            message: `${employee?.firstName} ${employee?.lastName} applied for ${leaveType} leave (${start.toLocaleDateString()} - ${end.toLocaleDateString()}) but is currently covering for: ${conflictDetails}. If approved, duty reassignment will be required.`,
+            message: `${employee?.fullName || employee?.callingName || `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim()} applied for ${leaveType} leave (${start.toLocaleDateString()} - ${end.toLocaleDateString()}) but is currently covering for: ${conflictDetails}. If approved, duty reassignment will be required.`,
             senderId: userId,
             relatedId: leave.id,
             isPinned: true, // Pin this to make it highly visible
