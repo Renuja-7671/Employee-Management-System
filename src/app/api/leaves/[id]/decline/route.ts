@@ -51,6 +51,26 @@ export async function POST(
       );
     }
 
+    // Get the leave details first (needed for balance restoration)
+    const existingLeave = await prisma.leave.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        employeeId: true,
+        status: true,
+        leaveType: true,
+        totalDays: true,
+        coverEmployeeId: true,
+      },
+    });
+
+    if (!existingLeave) {
+      return NextResponse.json(
+        { error: 'Leave not found' },
+        { status: 404 }
+      );
+    }
+
     const leave = await prisma.leave.update({
       where: { id },
       data: {
@@ -58,6 +78,23 @@ export async function POST(
         adminResponse: body.adminResponse,
       },
     });
+
+    // Restore leave balance (ANNUAL, CASUAL, MEDICAL only - not OFFICIAL)
+    // Balance is restored because the leave won't be taken anymore
+    if (existingLeave.leaveType !== 'OFFICIAL') {
+      const fieldToRestore =
+        existingLeave.leaveType === 'ANNUAL' ? 'annual' :
+        existingLeave.leaveType === 'CASUAL' ? 'casual' : 'medical';
+
+      await prisma.leaveBalance.update({
+        where: { employeeId: existingLeave.employeeId },
+        data: {
+          [fieldToRestore]: {
+            increment: Number(existingLeave.totalDays) || 0,
+          },
+        },
+      });
+    }
 
     // Fetch employee and cover employee details for email
     const employee = await prisma.user.findUnique({

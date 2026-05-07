@@ -40,7 +40,9 @@ export async function GET(
       prisma.leave.findMany({
         where: {
           employeeId,
-          status: 'APPROVED',
+          status: {
+            in: ['APPROVED', 'PENDING_COVER', 'PENDING_ADMIN'], // Include pending leaves for real-time balance
+          },
           startDate: {
             gte: new Date(currentYear, 0, 1), // January 1st of current year
             lt: new Date(currentYear + 1, 0, 1), // January 1st of next year

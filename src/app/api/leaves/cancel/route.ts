@@ -21,6 +21,8 @@ export async function POST(request: NextRequest) {
         employeeId: true,
         status: true,
         coverEmployeeId: true,
+        leaveType: true,
+        totalDays: true,
       },
     });
 
@@ -59,6 +61,22 @@ export async function POST(request: NextRequest) {
         isCancelled: true,
       },
     });
+
+    // Restore leave balance (ANNUAL, CASUAL, MEDICAL only - not OFFICIAL)
+    if (leave.leaveType !== 'OFFICIAL') {
+      const fieldToRestore =
+        leave.leaveType === 'ANNUAL' ? 'annual' :
+        leave.leaveType === 'CASUAL' ? 'casual' : 'medical';
+
+      await prisma.leaveBalance.update({
+        where: { employeeId: leave.employeeId },
+        data: {
+          [fieldToRestore]: {
+            increment: Number(leave.totalDays) || 0,
+          },
+        },
+      });
+    }
 
     // Create notification for cover employee if applicable
     if (leave.coverEmployeeId) {

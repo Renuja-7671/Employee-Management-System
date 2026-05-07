@@ -65,65 +65,8 @@ export async function POST(
       },
     });
 
-    // Deduct leave balance for annual, casual, and medical leaves (official is unlimited)
-    if (leave.leaveType === 'ANNUAL' || leave.leaveType === 'CASUAL' || leave.leaveType === 'MEDICAL') {
-      // Deduct from the year when the leave is taken (not current year)
-      const leaveYear = new Date(leave.startDate).getFullYear();
-
-      // Find or create leave balance for the employee
-      // Note: Due to unique constraint on employeeId, each employee has one balance record
-      let leaveBalance = await prisma.leaveBalance.findUnique({
-        where: {
-          employeeId: leave.employeeId,
-        },
-      });
-
-      if (!leaveBalance) {
-        // Create default leave balance if it doesn't exist
-        leaveBalance = await prisma.leaveBalance.create({
-          data: {
-            employeeId: leave.employeeId,
-            year: leaveYear,
-            annual: 14,
-            casual: 7,
-            medical: 7,
-            official: 0,
-          },
-        });
-      } else if (leaveBalance.year !== leaveYear) {
-        // If the balance is for a different year, update it to the new year with fresh balance
-        leaveBalance = await prisma.leaveBalance.update({
-          where: {
-            employeeId: leave.employeeId,
-          },
-          data: {
-            year: leaveYear,
-            annual: 14,
-            casual: 7,
-            medical: 7,
-            official: 0,
-          },
-        });
-      }
-
-      // Deduct the leave days from the appropriate balance
-      const fieldToUpdate =
-        leave.leaveType === 'ANNUAL' ? 'annual' :
-        leave.leaveType === 'CASUAL' ? 'casual' : 'medical';
-
-      const currentBalance =
-        leave.leaveType === 'ANNUAL' ? leaveBalance.annual :
-        leave.leaveType === 'CASUAL' ? leaveBalance.casual : leaveBalance.medical;
-
-      const newBalance = Math.max(0, currentBalance - leave.totalDays);
-
-      await prisma.leaveBalance.update({
-        where: { id: leaveBalance.id },
-        data: {
-          [fieldToUpdate]: newBalance,
-        },
-      });
-    }
+    // NOTE: Balance deduction now happens at leave application time (not at approval)
+    // This allows employees to see real-time leave balance updates
 
     // Fetch employee and cover employee details for email
     const employee = await prisma.user.findUnique({

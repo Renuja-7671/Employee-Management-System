@@ -42,6 +42,13 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
+    
+    // For balance restoration, also get leaveType and totalDays
+    const leaveDetails = {
+      leaveType: leave.leaveType,
+      totalDays: leave.totalDays,
+      employeeId: leave.employeeId,
+    };
 
     // Verify the user is the cover employee
     if (leave.coverEmployeeId !== userId) {
@@ -138,6 +145,31 @@ export async function POST(request: NextRequest) {
           adminResponse: `Cover employee declined: ${reason}`,
         },
       });
+
+      // Restore leave balance when cover employee declines
+      // This is same as if the employee cancelled the request
+      if (leaveDetails && leaveDetails.leaveType !== 'OFFICIAL') {
+        const fieldToRestore = leaveDetails.leaveType === 'ANNUAL'
+          ? 'annual'
+          : leaveDetails.leaveType === 'CASUAL'
+            ? 'casual'
+            : 'medical';
+
+        const existingBalance = await prisma.leaveBalance.findUnique({
+          where: { employeeId: leaveDetails.employeeId },
+        });
+
+        if (existingBalance) {
+          await prisma.leaveBalance.update({
+            where: { employeeId: leaveDetails.employeeId },
+            data: {
+              [fieldToRestore]: {
+                increment: Number(leaveDetails.totalDays) || 0,
+              },
+            },
+          });
+        }
+      }
 
       // Create notification for employee
       await prisma.notification.create({

@@ -532,6 +532,23 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Deduct leave balance immediately (ANNUAL, CASUAL, MEDICAL only - not OFFICIAL)
+    if (leaveTypeUpper !== 'OFFICIAL') {
+      const fieldToDeduct =
+        leaveTypeUpper === 'ANNUAL' ? 'annual' :
+        leaveTypeUpper === 'CASUAL' ? 'casual' : 'medical';
+
+      const currentBalance = Number(leaveBalance[fieldToDeduct as keyof typeof leaveBalance]) || 0;
+      const newBalance = Math.max(0, currentBalance - totalDays);
+
+      await prisma.leaveBalance.update({
+        where: { id: leaveBalance.id },
+        data: {
+          [fieldToDeduct]: newBalance,
+        },
+      });
+    }
+
     // Get employee details for notifications
     const employee = await prisma.user.findUnique({
       where: { id: userId },
