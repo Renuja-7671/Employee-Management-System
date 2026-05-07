@@ -123,10 +123,10 @@ export function LeaveManagement() {
       }));
       setLeaves(transformedLeaves);
 
-      // Transform employees data to include full name
+      // Transform employees data to include calling name with fallback logic
       const transformedEmployees = employeesData.map(emp => ({
         ...emp,
-        name: `${emp.firstName} ${emp.lastName}`
+        name: emp.callingName || emp.fullName || `${emp.firstName || ''} ${emp.lastName || ''}`.trim() || emp.employeeId
       }));
       setEmployees(transformedEmployees);
     } catch (error) {
