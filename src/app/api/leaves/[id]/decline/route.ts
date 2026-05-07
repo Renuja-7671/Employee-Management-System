@@ -36,10 +36,10 @@ export async function POST(
       );
     }
 
-    // Only Managing Director can decline leaves
-    if (admin.adminType !== 'MANAGING_DIRECTOR') {
+    // Only Managing Director and RESERVED can decline leaves
+    if (admin.adminType !== 'MANAGING_DIRECTOR' && admin.adminType !== 'RESERVED') {
       return NextResponse.json(
-        { error: 'Only Managing Director can decline leave requests' },
+        { error: 'Only Managing Director or RESERVED admin can decline leave requests' },
         { status: 403 }
       );
     }

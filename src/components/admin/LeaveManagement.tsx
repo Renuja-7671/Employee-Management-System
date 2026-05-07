@@ -177,9 +177,9 @@ export function LeaveManagement() {
       return;
     }
 
-    // Check if user is Managing Director
-    if (currentAdminType !== 'MANAGING_DIRECTOR') {
-      toast.error('Only Managing Director can approve or decline leave requests');
+    // Check if user is Managing Director or RESERVED
+    if (currentAdminType !== 'MANAGING_DIRECTOR' && currentAdminType !== 'RESERVED') {
+      toast.error('Only Managing Director or RESERVED admin can approve or decline leave requests');
       return;
     }
 
@@ -737,10 +737,10 @@ export function LeaveManagement() {
                               size="sm"
                               className="bg-green-600 hover:bg-green-700"
                               onClick={() => handleAction(leave, 'approve')}
-                              disabled={currentAdminType !== 'MANAGING_DIRECTOR'}
+                              disabled={currentAdminType !== 'MANAGING_DIRECTOR' && currentAdminType !== 'RESERVED'}
                               title={
-                                currentAdminType !== 'MANAGING_DIRECTOR'
-                                  ? 'Only Managing Director can approve leaves'
+                                currentAdminType !== 'MANAGING_DIRECTOR' && currentAdminType !== 'RESERVED'
+                                  ? 'Only Managing Director or RESERVED admin can approve leaves'
                                   : 'Approve leave request'
                               }
                             >
@@ -751,10 +751,10 @@ export function LeaveManagement() {
                               size="sm"
                               variant="destructive"
                               onClick={() => handleAction(leave, 'decline')}
-                              disabled={currentAdminType !== 'MANAGING_DIRECTOR'}
+                              disabled={currentAdminType !== 'MANAGING_DIRECTOR' && currentAdminType !== 'RESERVED'}
                               title={
-                                currentAdminType !== 'MANAGING_DIRECTOR'
-                                  ? 'Only Managing Director can decline leaves'
+                                currentAdminType !== 'MANAGING_DIRECTOR' && currentAdminType !== 'RESERVED'
+                                  ? 'Only Managing Director or RESERVED admin can decline leaves'
                                   : 'Decline leave request'
                               }
                             >
