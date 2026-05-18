@@ -8,6 +8,10 @@ const isSunday = (date: Date): boolean => {
   return date.getDay() === 0;
 };
 
+const getDateKey = (date: Date): string => {
+  return new Date(date).toISOString().split('T')[0];
+};
+
 // Helper function to calculate working days (excluding Sundays and company holidays)
 const calculateWorkingDays = async (startDate: Date, endDate: Date): Promise<number> => {
   // Normalize start and end dates to UTC midnight for proper comparison
@@ -108,6 +112,21 @@ export async function POST(request: NextRequest) {
     }
 
     const leaveTypeUpper = leaveType.toUpperCase();
+    const normalizedHalfDayType = halfDayType || null;
+
+    if (normalizedHalfDayType && normalizedHalfDayType !== 'FIRST_HALF' && normalizedHalfDayType !== 'SECOND_HALF') {
+      return NextResponse.json(
+        { error: 'Invalid half day type' },
+        { status: 400 }
+      );
+    }
+
+    if (leaveTypeUpper === 'OFFICIAL' && numberOfDays === 0.5 && !normalizedHalfDayType) {
+      return NextResponse.json(
+        { error: 'Half day type is required for official half day leave' },
+        { status: 400 }
+      );
+    }
 
     // Cover employee is required for all leave types except official
     if (leaveTypeUpper !== 'OFFICIAL' && !coverEmployeeId) {
@@ -228,11 +247,44 @@ export async function POST(request: NextRequest) {
         endDate: true,
         status: true,
         totalDays: true,
+        halfDayType: true,
       },
     });
 
     if (overlappingLeaves.length > 0) {
-      const overlappingLeave = overlappingLeaves[0];
+      const requestedIsOfficialHalfDay = leaveTypeUpper === 'OFFICIAL' && numberOfDays === 0.5 && !!normalizedHalfDayType;
+
+      const isComplementaryHalfDayOverlap = (existingLeave: {
+        leaveType: string;
+        totalDays: number;
+        halfDayType: string | null;
+        startDate: Date;
+        endDate: Date;
+      }) => {
+        if (!requestedIsOfficialHalfDay) return false;
+        if (existingLeave.leaveType !== 'OFFICIAL') return false;
+        if (existingLeave.totalDays !== 0.5) return false;
+        if (!existingLeave.halfDayType) return false;
+        if (existingLeave.halfDayType === normalizedHalfDayType) return false;
+
+        const existingStartKey = getDateKey(existingLeave.startDate);
+        const existingEndKey = getDateKey(existingLeave.endDate);
+        const requestedStartKey = getDateKey(start);
+        const requestedEndKey = getDateKey(end);
+
+        return (
+          existingStartKey === existingEndKey &&
+          requestedStartKey === requestedEndKey &&
+          existingStartKey === requestedStartKey
+        );
+      };
+
+      const blockingOverlaps = overlappingLeaves.filter((existingLeave) => !isComplementaryHalfDayOverlap(existingLeave));
+
+      if (blockingOverlaps.length === 0) {
+        console.log('[LEAVE] Complementary half-day leave detected. Allowing second half/first half request on same day.');
+      } else {
+        const overlappingLeave = blockingOverlaps[0];
       const formatDate = (date: Date) => {
         return new Date(date).toLocaleDateString('en-US', {
           year: 'numeric',
@@ -259,6 +311,7 @@ export async function POST(request: NextRequest) {
         },
         { status: 400 }
       );
+      }
     }
 
     // Get or create leave balance for the employee
@@ -528,7 +581,7 @@ export async function POST(request: NextRequest) {
         medicalCertPath: medicalCertUrl || null,
         status: leaveTypeUpper === 'OFFICIAL' ? 'PENDING_ADMIN' : 'PENDING_COVER',
         isNoPay: isNoPay,
-        halfDayType: halfDayType || null, // Store half-day type for official leaves
+        halfDayType: numberOfDays === 0.5 ? normalizedHalfDayType : null, // Store half-day type only for half-day leaves
       },
     });
 
