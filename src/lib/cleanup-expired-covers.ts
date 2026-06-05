@@ -1,6 +1,7 @@
 // src/lib/cleanup-expired-covers.ts
 
 import { prisma } from '@/lib/prisma';
+import { getDisplayName } from '@/lib/user-utils';
 
 /**
  * Clean up expired cover requests (lazy cleanup approach)
@@ -28,6 +29,7 @@ export async function cleanupExpiredCoverRequests() {
             employee: {
               select: {
                 id: true,
+                callingName: true,
                 firstName: true,
                 lastName: true,
               },
@@ -35,6 +37,7 @@ export async function cleanupExpiredCoverRequests() {
             coverEmployee: {
               select: {
                 id: true,
+                callingName: true,
                 firstName: true,
                 lastName: true,
               },
@@ -67,7 +70,7 @@ export async function cleanupExpiredCoverRequests() {
         const employee = leave.employee;
         const coverEmployee = leave.coverEmployee;
 
-        console.log(`[LAZY-CLEANUP] Processing expired request for ${employee.firstName} ${employee.lastName} (Leave ID: ${leave.id})`);
+        console.log(`[LAZY-CLEANUP] Processing expired request for ${getDisplayName(employee)} (Leave ID: ${leave.id})`);
 
         // Create notification for the employee
         await prisma.notification.create({
@@ -75,7 +78,7 @@ export async function cleanupExpiredCoverRequests() {
             userId: employee.id,
             type: 'SYSTEM_ALERT',
             title: '❌ Leave Request Expired',
-            message: `Your ${leave.leaveType.toLowerCase()} leave request (${new Date(leave.startDate).toLocaleDateString()} - ${new Date(leave.endDate).toLocaleDateString()}) has expired because ${coverEmployee?.firstName} ${coverEmployee?.lastName} did not respond within 24 hours. Please reapply if you still need this leave.`,
+            message: `Your ${leave.leaveType.toLowerCase()} leave request (${new Date(leave.startDate).toLocaleDateString()} - ${new Date(leave.endDate).toLocaleDateString()}) has expired because ${getDisplayName(coverEmployee)} did not respond within 24 hours. Please reapply if you still need this leave.`,
             relatedId: leave.id,
             isPinned: true,
           },

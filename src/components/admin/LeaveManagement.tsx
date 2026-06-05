@@ -44,6 +44,7 @@ import { getLeaves, approveLeave, declineLeave, Leave as LeaveAPI } from '@/lib/
 import { getEmployees, Employee as EmployeeAPI } from '@/lib/api/employees';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { downloadXlsx } from '@/lib/xlsx-export';
 
 // Extend jsPDF type to include autoTable
 declare module 'jspdf' {
@@ -377,6 +378,66 @@ export function LeaveManagement() {
     toast.success(`Exported ${officialLeaves.length} official leave requests`);
   };
 
+  const exportToXLSX = () => {
+    if (filteredLeaves.length === 0) {
+      toast.error('No leave requests to export');
+      return;
+    }
+
+    const headers = [
+      'Employee ID',
+      'Employee',
+      'Leave Type',
+      'Start Date',
+      'End Date',
+      'Days',
+      'Half Day Type',
+      'Status',
+      'No Pay',
+      'Applied Date',
+      'Cover Employee',
+      'Admin Response',
+      'Reason',
+    ];
+
+    const rows = filteredLeaves.map((leave) => {
+      const employee = employees.find((e) => e.id === leave.userId);
+      const coverEmployee = leave.coverEmployeeId
+        ? employees.find((e) => e.id === leave.coverEmployeeId)
+        : null;
+      let halfDayDisplay = 'N/A';
+      if (leave.halfDayType === 'FIRST_HALF') halfDayDisplay = 'First Half';
+      else if (leave.halfDayType === 'SECOND_HALF') halfDayDisplay = 'Second Half';
+
+      return [
+        employee?.employeeId || 'N/A',
+        getEmployeeName(leave.userId),
+        leave.leaveType,
+        new Date(leave.startDate).toLocaleDateString(),
+        new Date(leave.endDate).toLocaleDateString(),
+        leave.days,
+        halfDayDisplay,
+        leave.status,
+        (leave as any).isNoPay ? 'Yes' : 'No',
+        new Date(leave.createdAt).toLocaleDateString(),
+        coverEmployee ? coverEmployee.name : 'N/A',
+        (leave as any).adminResponse || 'N/A',
+        leave.reason || 'N/A',
+      ];
+    });
+
+    const employeeName =
+      selectedEmployeeId !== 'all'
+        ? employees.find((e) => e.id === selectedEmployeeId)?.name.replace(/\s+/g, '_')
+        : 'All';
+
+    downloadXlsx(
+      [{ name: 'Leave Requests', headers, rows }],
+      `leave_requests_${employeeName}_${startDate}_to_${endDate}`
+    );
+    toast.success(`Exported ${filteredLeaves.length} leave requests to Excel`);
+  };
+
   const exportToPDF = () => {
     if (filteredLeaves.length === 0) {
       toast.error('No leave requests to export');
@@ -634,6 +695,10 @@ export function LeaveManagement() {
               <Button variant="outline" size="sm" onClick={exportOfficialLeavesCSV}>
                 <Download className="h-4 w-4 mr-2" />
                 Official CSV
+              </Button>
+              <Button variant="outline" size="sm" onClick={exportToXLSX} className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200">
+                <FileText className="h-4 w-4 mr-2" />
+                Export XLS
               </Button>
               <Button variant="outline" size="sm" onClick={exportToPDF} className="bg-teal-50 hover:bg-teal-100">
                 <FileText className="h-4 w-4 mr-2" />

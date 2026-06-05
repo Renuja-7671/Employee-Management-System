@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Input } from '@/components/ui/input';
+import { downloadXlsx } from '@/lib/xlsx-export';
 
 // Extend jsPDF type to include autoTable
 declare module 'jspdf' {
@@ -102,6 +103,13 @@ export default function LeaveSummary() {
   const [selectedEmployee, setSelectedEmployee] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
+  // Monthly attendance report state
+  const [reportMonth, setReportMonth] = useState(
+    String(new Date().getMonth() + 1).padStart(2, '0')
+  );
+  const [reportYear, setReportYear] = useState(new Date().getFullYear().toString());
+  const [exportingAttendance, setExportingAttendance] = useState(false);
+
   useEffect(() => {
     fetchLeaveSummary();
     fetchTodayAttendance();
@@ -149,6 +157,122 @@ export default function LeaveSummary() {
     } catch (error) {
       console.error('Error fetching today\'s attendance:', error);
     }
+  };
+
+  const exportMonthlyAttendance = async () => {
+    const userStr = localStorage.getItem('user');
+    if (!userStr) {
+      toast.error('Please log in again');
+      return;
+    }
+    const user = JSON.parse(userStr);
+    setExportingAttendance(true);
+    try {
+      const url = `/api/reports/monthly-attendance?month=${parseInt(reportMonth)}&year=${reportYear}&adminId=${user.id}`;
+      const response = await fetch(url);
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to generate report');
+      }
+      const blob = await response.blob();
+      const anchor = document.createElement('a');
+      anchor.href = window.URL.createObjectURL(blob);
+      const monthLabel = new Date(parseInt(reportYear), parseInt(reportMonth) - 1).toLocaleString('en-US', { month: 'long' });
+      anchor.download = `Attendance_${monthLabel}_${reportYear}.xlsx`;
+      anchor.click();
+      window.URL.revokeObjectURL(anchor.href);
+      toast.success(`Attendance report for ${monthLabel} ${reportYear} downloaded`);
+    } catch (error: any) {
+      console.error('Error exporting attendance report:', error);
+      toast.error(error.message || 'Failed to export report');
+    } finally {
+      setExportingAttendance(false);
+    }
+  };
+
+  const exportToXLSX = () => {
+    if (!companyStats || employees.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+
+    // Sheet 1: Company Overview
+    const overviewHeaders = ['Metric', 'Value'];
+    const overviewRows = [
+      ['Report Year', year],
+      ['Total Employees', companyStats.totalEmployees],
+      ['Total Approved Leaves (days)', companyStats.totalLeavesApproved],
+      ['Average Leaves Per Employee (days)', companyStats.averageLeavesPerEmployee],
+      ['Annual Leave Days Used', companyStats.leaveTypeDistribution.ANNUAL],
+      ['Casual Leave Days Used', companyStats.leaveTypeDistribution.CASUAL],
+      ['Medical Leave Days Used', companyStats.leaveTypeDistribution.MEDICAL],
+      ['Official Leave Days Used', companyStats.leaveTypeDistribution.OFFICIAL],
+      ['Generated On', new Date().toLocaleDateString()],
+    ];
+
+    // Sheet 2: Employee Leave Summary
+    const summaryHeaders = [
+      'Employee ID',
+      'Name',
+      'Department',
+      'Position',
+      'Annual Approved',
+      'Annual Pending',
+      'Casual Approved',
+      'Casual Pending',
+      'Medical Approved',
+      'Medical Pending',
+      'Official Approved',
+      'Official Pending',
+      'Total Approved Days',
+      'No Pay Leaves',
+      'No Pay Days',
+    ];
+    const summaryRows = employees.map((emp) => [
+      emp.employee.employeeId,
+      emp.employee.name,
+      emp.employee.department,
+      emp.employee.position,
+      emp.leaveTaken.ANNUAL.approved,
+      emp.leaveTaken.ANNUAL.pending,
+      emp.leaveTaken.CASUAL.approved,
+      emp.leaveTaken.CASUAL.pending,
+      emp.leaveTaken.MEDICAL.approved,
+      emp.leaveTaken.MEDICAL.pending,
+      emp.leaveTaken.OFFICIAL.approved,
+      emp.leaveTaken.OFFICIAL.pending,
+      emp.totalApprovedLeaves,
+      emp.noPayLeaves.count,
+      emp.noPayLeaves.days,
+    ]);
+
+    // Sheet 3: Leave Balance
+    const balanceHeaders = [
+      'Employee ID',
+      'Name',
+      'Department',
+      'Annual Balance',
+      'Casual Balance',
+      'Medical Balance',
+    ];
+    const balanceRows = employees.map((emp) => [
+      emp.employee.employeeId,
+      emp.employee.name,
+      emp.employee.department,
+      emp.remainingBalance.annual,
+      emp.remainingBalance.casual,
+      emp.remainingBalance.medical,
+    ]);
+
+    downloadXlsx(
+      [
+        { name: 'Company Overview', headers: overviewHeaders, rows: overviewRows },
+        { name: 'Employee Leave Summary', headers: summaryHeaders, rows: summaryRows },
+        { name: 'Leave Balance', headers: balanceHeaders, rows: balanceRows },
+      ],
+      `leave_summary_${year}`
+    );
+    toast.success(`Exported leave summary for ${year} to Excel`);
   };
 
   const exportToPDF = () => {
@@ -305,8 +429,104 @@ export default function LeaveSummary() {
     );
   });
 
+  const MONTHS = [
+    { value: '01', label: 'January'  }, { value: '02', label: 'February' },
+    { value: '03', label: 'March'    }, { value: '04', label: 'April'    },
+    { value: '05', label: 'May'      }, { value: '06', label: 'June'     },
+    { value: '07', label: 'July'     }, { value: '08', label: 'August'   },
+    { value: '09', label: 'September'}, { value: '10', label: 'October'  },
+    { value: '11', label: 'November' }, { value: '12', label: 'December' },
+  ];
+
+  const reportYears = Array.from({ length: 5 }, (_, i) =>
+    String(new Date().getFullYear() - 2 + i)
+  );
+
   return (
     <div className="space-y-6">
+
+      {/* Monthly Attendance Report Card */}
+      <Card className="border-2 border-green-200 bg-gradient-to-r from-green-50 to-white">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg text-green-800">
+            <FileText className="h-5 w-5 text-green-600" />
+            Monthly Attendance Report
+          </CardTitle>
+          <p className="text-xs sm:text-sm text-gray-500">
+            Export a per-employee Excel workbook with daily attendance, late minutes, hours worked, and leave details.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-600 whitespace-nowrap">Month:</label>
+              <Select value={reportMonth} onValueChange={setReportMonth}>
+                <SelectTrigger className="w-36">
+                  <SelectValue placeholder="Select month" />
+                </SelectTrigger>
+                <SelectContent>
+                  {MONTHS.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-600 whitespace-nowrap">Year:</label>
+              <Select value={reportYear} onValueChange={setReportYear}>
+                <SelectTrigger className="w-28">
+                  <SelectValue placeholder="Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {reportYears.map((y) => (
+                    <SelectItem key={y} value={y}>
+                      {y}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <Button
+              onClick={exportMonthlyAttendance}
+              disabled={exportingAttendance}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {exportingAttendance ? (
+                <>
+                  <div className="h-4 w-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Generating…
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export XLS
+                </>
+              )}
+            </Button>
+            <div className="flex items-center gap-3 ml-2 text-xs text-gray-500">
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-3 h-3 rounded-sm bg-yellow-300 border border-yellow-400" />
+                Sunday
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-3 h-3 rounded-sm bg-green-400 border border-green-500" />
+                Applied Leaves
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-3 h-3 rounded-sm bg-blue-400 border border-blue-500" />
+                Official Leaves
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="inline-block w-3 h-3 rounded-sm bg-red-500 border border-red-600" />
+                Missing Out Time
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -328,6 +548,10 @@ export default function LeaveSummary() {
               ))}
             </SelectContent>
           </Select>
+          <Button onClick={exportToXLSX} variant="outline" className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200 flex-1 sm:flex-none">
+            <FileText className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
+            <span className="text-xs sm:text-sm">Export XLS</span>
+          </Button>
           <Button onClick={exportToPDF} className="bg-teal-600 hover:bg-teal-700 flex-1 sm:flex-none">
             <Download className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-2" />
             <span className="text-xs sm:text-sm">Export PDF</span>

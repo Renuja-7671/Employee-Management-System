@@ -39,6 +39,7 @@ import { BiometricMappings } from './BiometricMappings';
 import { BiometricDevices } from './BiometricDevices';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { downloadXlsx } from '@/lib/xlsx-export';
 
 // Extend jsPDF type to include autoTable
 declare module 'jspdf' {
@@ -265,6 +266,51 @@ export function AttendanceManagement() {
     }
 
     return workingDays;
+  };
+
+  const exportToXLSX = () => {
+    if (filteredAttendance.length === 0) {
+      toast.error('No attendance records to export');
+      return;
+    }
+
+    const headers = [
+      'Employee',
+      'Employee ID',
+      'Date',
+      'Status',
+      'Check In',
+      'Check Out',
+      'Late Minutes',
+      'Total Hours',
+      'Source',
+    ];
+
+    const rows = filteredAttendance.map((att) => {
+      const employee = employees.find((e) => e.id === att.employeeId);
+      return [
+        getEmployeeName(att.employeeId),
+        employee?.employeeId || 'N/A',
+        new Date(att.date).toLocaleDateString(),
+        att.status || 'N/A',
+        formatTime(att.checkIn),
+        formatTime(att.checkOut),
+        calculateLateMinutes(att.checkIn, att.date, att.isWeekend),
+        calculateHours(att.checkIn, att.checkOut),
+        (att as any).source || 'N/A',
+      ];
+    });
+
+    const employeeName =
+      selectedEmployeeFilter !== 'all'
+        ? employees.find((e) => e.id === selectedEmployeeFilter)?.name.replace(/\s+/g, '_')
+        : 'All';
+
+    downloadXlsx(
+      [{ name: 'Attendance', headers, rows }],
+      `attendance_${employeeName}_${startDate}_to_${endDate}`
+    );
+    toast.success(`Exported ${filteredAttendance.length} attendance records to Excel`);
   };
 
   const exportToCSV = () => {
@@ -743,6 +789,10 @@ export function AttendanceManagement() {
                     <Button variant="outline" size="sm" onClick={exportToCSV}>
                       <Download className="h-4 w-4 mr-2" />
                       Export CSV
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={exportToXLSX} className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200">
+                      <FileText className="h-4 w-4 mr-2" />
+                      Export XLS
                     </Button>
                     <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
                       <DialogTrigger asChild>

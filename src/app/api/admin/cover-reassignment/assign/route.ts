@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getDisplayName } from '@/lib/user-utils';
 
 /**
  * Assign new cover employee for a duty reassignment
@@ -25,6 +26,7 @@ export async function POST(request: NextRequest) {
         id: true,
         role: true,
         adminType: true,
+        callingName: true,
         firstName: true,
         lastName: true,
       },
@@ -64,6 +66,7 @@ export async function POST(request: NextRequest) {
         employee: {
           select: {
             id: true,
+            callingName: true,
             firstName: true,
             lastName: true,
           },
@@ -83,6 +86,7 @@ export async function POST(request: NextRequest) {
       where: { id: newCoverEmployeeId },
       select: {
         id: true,
+        callingName: true,
         firstName: true,
         lastName: true,
         email: true,
@@ -127,7 +131,7 @@ export async function POST(request: NextRequest) {
     if (conflictingLeave) {
       return NextResponse.json(
         {
-          error: `${newCoverEmployee.firstName} ${newCoverEmployee.lastName} is on leave during this period and cannot be assigned as cover`,
+          error: `${getDisplayName(newCoverEmployee)} is on leave during this period and cannot be assigned as cover`,
         },
         { status: 400 }
       );
@@ -157,7 +161,7 @@ export async function POST(request: NextRequest) {
         userId: newCoverEmployeeId,
         type: 'COVER_REQUEST',
         title: '🔄 Cover Duty Assigned',
-        message: `You have been assigned to cover for ${originalLeave.employee.firstName} ${originalLeave.employee.lastName}'s ${originalLeave.leaveType.toLowerCase()} leave from ${new Date(originalLeave.startDate).toLocaleDateString()} to ${new Date(originalLeave.endDate).toLocaleDateString()}. This was reassigned by HR.`,
+        message: `You have been assigned to cover for ${getDisplayName(originalLeave.employee)}'s ${originalLeave.leaveType.toLowerCase()} leave from ${new Date(originalLeave.startDate).toLocaleDateString()} to ${new Date(originalLeave.endDate).toLocaleDateString()}. This was reassigned by HR.`,
         senderId: hrHeadId,
         relatedId: originalLeave.id,
       },
@@ -169,7 +173,7 @@ export async function POST(request: NextRequest) {
         userId: originalLeave.employeeId,
         type: 'SYSTEM_ALERT',
         title: '🔄 Cover Employee Updated',
-        message: `Your cover employee has been changed to ${newCoverEmployee.firstName} ${newCoverEmployee.lastName} for your leave from ${new Date(originalLeave.startDate).toLocaleDateString()} to ${new Date(originalLeave.endDate).toLocaleDateString()}.`,
+        message: `Your cover employee has been changed to ${getDisplayName(newCoverEmployee)} for your leave from ${new Date(originalLeave.startDate).toLocaleDateString()} to ${new Date(originalLeave.endDate).toLocaleDateString()}.`,
         senderId: hrHeadId,
         relatedId: originalLeave.id,
       },
@@ -190,7 +194,7 @@ export async function POST(request: NextRequest) {
           userId: managingDirector.id,
           type: 'SYSTEM_ALERT',
           title: '✅ Cover Duty Reassigned',
-          message: `${admin.firstName} ${admin.lastName} assigned ${newCoverEmployee.firstName} ${newCoverEmployee.lastName} to cover for ${originalLeave.employee.firstName} ${originalLeave.employee.lastName}'s leave (${new Date(originalLeave.startDate).toLocaleDateString()} - ${new Date(originalLeave.endDate).toLocaleDateString()}).`,
+          message: `${getDisplayName(admin)} assigned ${getDisplayName(newCoverEmployee)} to cover for ${getDisplayName(originalLeave.employee)}'s leave (${new Date(originalLeave.startDate).toLocaleDateString()} - ${new Date(originalLeave.endDate).toLocaleDateString()}).`,
           senderId: hrHeadId,
           relatedId: originalLeave.id,
         },

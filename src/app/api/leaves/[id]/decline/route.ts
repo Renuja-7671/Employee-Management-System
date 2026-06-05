@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendLeaveRejectionEmails } from '@/lib/leave-emails';
+import { getDisplayName } from '@/lib/user-utils';
 
 export async function POST(
   request: NextRequest,
@@ -100,6 +101,7 @@ export async function POST(
     const employee = await prisma.user.findUnique({
       where: { id: leave.employeeId },
       select: {
+        callingName: true,
         firstName: true,
         lastName: true,
         email: true,
@@ -111,6 +113,7 @@ export async function POST(
       coverEmployee = await prisma.user.findUnique({
         where: { id: leave.coverEmployeeId },
         select: {
+          callingName: true,
           firstName: true,
           lastName: true,
           email: true,
@@ -124,7 +127,7 @@ export async function POST(
         userId: body.adminId,
         type: 'LEAVE_DECLINED',
         title: '❌ Leave Declined',
-        message: `You declined ${employee?.firstName} ${employee?.lastName}'s leave request for ${leave.totalDays} day(s).`,
+        message: `You declined ${getDisplayName(employee)}'s leave request for ${leave.totalDays} day(s).`,
       },
     });
 

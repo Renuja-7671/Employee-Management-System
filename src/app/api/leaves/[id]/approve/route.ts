@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sendLeaveApprovalEmails } from '@/lib/leave-emails';
+import { getDisplayName } from '@/lib/user-utils';
 
 export async function POST(
   request: NextRequest,
@@ -72,6 +73,7 @@ export async function POST(
     const employee = await prisma.user.findUnique({
       where: { id: leave.employeeId },
       select: {
+        callingName: true,
         firstName: true,
         lastName: true,
         email: true,
@@ -83,6 +85,7 @@ export async function POST(
       coverEmployee = await prisma.user.findUnique({
         where: { id: leave.coverEmployeeId },
         select: {
+          callingName: true,
           firstName: true,
           lastName: true,
           email: true,
@@ -92,8 +95,8 @@ export async function POST(
 
     // Create notification for admin
     const adminNotificationMessage = leave.isNoPay
-      ? `You approved ${employee?.firstName} ${employee?.lastName}'s leave request for ${leave.totalDays} day(s). ⚠️ This is a NO PAY leave due to insufficient balance.`
-      : `You approved ${employee?.firstName} ${employee?.lastName}'s leave request for ${leave.totalDays} day(s).`;
+      ? `You approved ${getDisplayName(employee)}'s leave request for ${leave.totalDays} day(s). ⚠️ This is a NO PAY leave due to insufficient balance.`
+      : `You approved ${getDisplayName(employee)}'s leave request for ${leave.totalDays} day(s).`;
 
     await prisma.notification.create({
       data: {
@@ -134,6 +137,7 @@ export async function POST(
           include: {
             employee: {
               select: {
+                callingName: true,
                 firstName: true,
                 lastName: true,
                 employeeId: true,
@@ -143,7 +147,7 @@ export async function POST(
         });
 
         const affectedEmployeesList = affectedLeaves.map(
-          l => `${l.employee.firstName} ${l.employee.lastName} (${new Date(l.startDate).toLocaleDateString()} - ${new Date(l.endDate).toLocaleDateString()})`
+          l => `${getDisplayName(l.employee)} (${new Date(l.startDate).toLocaleDateString()} - ${new Date(l.endDate).toLocaleDateString()})`
         ).join(', ');
 
         // Notify HR Head about duty reassignment needed
@@ -152,7 +156,7 @@ export async function POST(
             userId: hrHead.id,
             type: 'DUTY_REASSIGNMENT_REQUIRED',
             title: '🔄 Duty Reassignment Required',
-            message: `${employee?.firstName} ${employee?.lastName}'s ${leave.leaveType.toLowerCase()} leave has been approved. They were covering for: ${affectedEmployeesList}. Please assign new cover employees.`,
+            message: `${getDisplayName(employee)}'s ${leave.leaveType.toLowerCase()} leave has been approved. They were covering for: ${affectedEmployeesList}. Please assign new cover employees.`,
             senderId: body.adminId,
             relatedId: leave.id,
             isPinned: true,

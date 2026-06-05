@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getDisplayName } from '@/lib/user-utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -88,7 +89,7 @@ export async function POST(request: NextRequest) {
     // Get cover employee info for notification
     const coverEmployee = await prisma.user.findUnique({
       where: { id: userId },
-      select: { firstName: true, lastName: true },
+      select: { callingName: true, firstName: true, lastName: true },
     });
 
     if (approved) {
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
           userId: leave.employeeId,
           type: 'COVER_ACCEPTED',
           title: 'Cover Request Accepted',
-          message: `${coverEmployee?.firstName} ${coverEmployee?.lastName} has accepted to cover your leave. Your request is now pending admin approval.`,
+          message: `${getDisplayName(coverEmployee)} has accepted to cover your leave. Your request is now pending admin approval.`,
           senderId: userId,
           relatedId: leaveId,
         },
@@ -177,7 +178,7 @@ export async function POST(request: NextRequest) {
           userId: leave.employeeId,
           type: 'COVER_DECLINED',
           title: 'Cover Request Declined',
-          message: `${coverEmployee?.firstName} ${coverEmployee?.lastName} declined to cover your leave. Reason: ${reason}`,
+          message: `${getDisplayName(coverEmployee)} declined to cover your leave. Reason: ${reason}`,
           senderId: userId,
           relatedId: leaveId,
         },

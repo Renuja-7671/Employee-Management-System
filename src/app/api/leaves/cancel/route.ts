@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getDisplayName } from '@/lib/user-utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -80,12 +81,17 @@ export async function POST(request: NextRequest) {
 
     // Create notification for cover employee if applicable
     if (leave.coverEmployeeId) {
+      const applicant = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { callingName: true, firstName: true, lastName: true },
+      });
+
       await prisma.notification.create({
         data: {
           userId: leave.coverEmployeeId,
           type: 'LEAVE_CANCELLED',
           title: 'Leave Request Cancelled',
-          message: 'A leave request you were covering has been cancelled',
+          message: `${getDisplayName(applicant)}'s leave request that you were covering has been cancelled`,
           relatedId: updatedLeave.id,
         },
       });

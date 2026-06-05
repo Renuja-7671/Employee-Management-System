@@ -31,9 +31,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { UserPlus, Download, UserX, UserCheck } from 'lucide-react';
+import { UserPlus, Download, UserX, UserCheck, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { getEmployees, createEmployee, updateEmployee, Employee as EmployeeAPI } from '@/lib/api/employees';
+import { downloadXlsx } from '@/lib/xlsx-export';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -286,6 +287,52 @@ export function EmployeeManagement() {
     }
   };
 
+  const exportToXLSX = () => {
+    const employeesToExport = showInactive
+      ? employees
+      : employees.filter((emp) => emp.isActive);
+
+    if (employeesToExport.length === 0) {
+      toast.error('No employees to export');
+      return;
+    }
+
+    const headers = [
+      'Employee ID',
+      'Full Name',
+      'Calling Name',
+      'NIC',
+      'Email',
+      'Department',
+      'Position',
+      'Phone',
+      'Joined Date',
+      'Status',
+      'Probation Status',
+    ];
+
+    const rows = employeesToExport.map((emp) => [
+      emp.employeeId,
+      emp.name,
+      (emp as any).callingName || 'N/A',
+      emp.nic || 'N/A',
+      emp.email,
+      emp.department || 'N/A',
+      emp.position || 'N/A',
+      (emp as any).phoneNumber || 'N/A',
+      new Date(emp.dateOfJoining).toLocaleDateString(),
+      emp.isActive ? 'Active' : 'Inactive',
+      (emp as any).isProbation ? 'On Probation' : 'Confirmed',
+    ]);
+
+    const statusSuffix = showInactive ? 'all' : 'active';
+    downloadXlsx(
+      [{ name: 'Employees', headers, rows }],
+      `employees_${statusSuffix}_${new Date().toISOString().split('T')[0]}`
+    );
+    toast.success(`Exported ${employeesToExport.length} employee${employeesToExport.length !== 1 ? 's' : ''} to Excel`);
+  };
+
   const exportToCSV = () => {
     // Filter employees based on showInactive toggle
     const employeesToExport = showInactive
@@ -373,6 +420,10 @@ export function EmployeeManagement() {
               <Button variant="outline" onClick={exportToCSV}>
                 <Download className="h-4 w-4 mr-2" />
                 Export CSV
+              </Button>
+              <Button variant="outline" onClick={exportToXLSX} className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200">
+                <FileText className="h-4 w-4 mr-2" />
+                Export XLS
               </Button>
               <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
                 <DialogTrigger asChild>
