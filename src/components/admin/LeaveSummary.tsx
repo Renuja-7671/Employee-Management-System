@@ -508,19 +508,19 @@ export default function LeaveSummary() {
             <div className="flex items-center gap-3 ml-2 text-xs text-gray-500">
               <span className="flex items-center gap-1">
                 <span className="inline-block w-3 h-3 rounded-sm bg-yellow-300 border border-yellow-400" />
-                Sunday
+                Yellow: Weekend Holiday (Sunday)
               </span>
               <span className="flex items-center gap-1">
                 <span className="inline-block w-3 h-3 rounded-sm bg-green-400 border border-green-500" />
-                Applied Leaves
+                Green: Applied Leave
               </span>
               <span className="flex items-center gap-1">
                 <span className="inline-block w-3 h-3 rounded-sm bg-blue-400 border border-blue-500" />
-                Official Leaves
+                Blue: Official Leave
               </span>
               <span className="flex items-center gap-1">
                 <span className="inline-block w-3 h-3 rounded-sm bg-red-500 border border-red-600" />
-                Missing Out Time
+                Red: Missing Out Time
               </span>
             </div>
           </div>

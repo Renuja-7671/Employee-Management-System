@@ -259,8 +259,8 @@ export async function GET(request: NextRequest) {
         { width: 26 }, // H – Explanation
         { width: 22 }, // I – Cover Employee
         { width: 3  }, // J – spacer
-        { width: 20 }, // K – legend colour
-        { width: 16 }, // L – legend label
+        { width: 12 }, // K – legend colour swatch
+        { width: 30 }, // L – legend label
       ];
 
       // ── Header row (row 1) ───────────────────────────────────────────────
@@ -288,26 +288,6 @@ export async function GET(request: NextRequest) {
           right: BORDER_THIN,
         };
       }
-
-      // ── Legend (rows 2–3, cols K–L) ──────────────────────────────────────
-      [
-        { fill: FILL_SUNDAY,      label: 'Sunday (Closed)'  },
-        { fill: FILL_APPLIED,     label: 'Applied Leaves'   },
-        { fill: FILL_OFFICIAL,    label: 'Official Leaves'  },
-        { fill: FILL_MISSING_OUT, label: 'Missing Out Time' },
-      ].forEach((item, i) => {
-        const lr = i + 2;
-        const colorCell = ws.getCell(lr, 11);
-        colorCell.fill = item.fill;
-        colorCell.border = {
-          top: BORDER_THIN, left: BORDER_THIN,
-          bottom: BORDER_THIN, right: BORDER_THIN,
-        };
-        const labelCell = ws.getCell(lr, 12);
-        labelCell.value = item.label;
-        labelCell.font = { size: 10 };
-        labelCell.alignment = { vertical: 'middle' };
-      });
 
       // ── Data rows (one per calendar day — starts at day 1, no padding) ────
       for (let day = 1; day <= daysInMonth; day++) {
@@ -416,6 +396,33 @@ export async function GET(request: NextRequest) {
           bottom: BORDER_THIN, right: BORDER_THIN,
         };
       }
+
+      // ── Legend (cols K–L) — written AFTER data rows so it isn't wiped ─────
+      // Data rows use row.values which resets the whole row; placing the
+      // legend here keeps the swatches/labels in K–L intact.
+      const legendTitle = ws.getCell(1, 11);
+      legendTitle.value = 'Colour Legend';
+      legendTitle.font = { bold: true, size: 11 };
+      legendTitle.alignment = { vertical: 'middle' };
+
+      [
+        { fill: FILL_SUNDAY,      color: 'Yellow', meaning: 'Weekend Holiday (Sunday)' },
+        { fill: FILL_APPLIED,     color: 'Green',  meaning: 'Applied Leave'             },
+        { fill: FILL_OFFICIAL,    color: 'Blue',   meaning: 'Official Leave'            },
+        { fill: FILL_MISSING_OUT, color: 'Red',    meaning: 'Missing Out Time'          },
+      ].forEach((item, i) => {
+        const lr = i + 2;
+        const colorCell = ws.getCell(lr, 11);
+        colorCell.fill = item.fill;
+        colorCell.border = {
+          top: BORDER_THIN, left: BORDER_THIN,
+          bottom: BORDER_THIN, right: BORDER_THIN,
+        };
+        const labelCell = ws.getCell(lr, 12);
+        labelCell.value = `${item.color}: ${item.meaning}`;
+        labelCell.font = { size: 10 };
+        labelCell.alignment = { vertical: 'middle' };
+      });
 
       ws.views = [{ state: 'frozen', xSplit: 0, ySplit: 1, activeCell: 'B2' }];
     }
