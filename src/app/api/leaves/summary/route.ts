@@ -3,6 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getLeaveBalanceForEmployee } from '@/lib/leave-probation-utils';
 
+/** Company owner — excluded from leave summary reports */
+const EXCLUDED_EMPLOYEE_IDS = ['EMP001'];
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -34,6 +37,7 @@ export async function GET(request: NextRequest) {
       where: {
         role: 'EMPLOYEE',
         isActive: true,
+        employeeId: { notIn: EXCLUDED_EMPLOYEE_IDS },
       },
       select: {
         id: true,
