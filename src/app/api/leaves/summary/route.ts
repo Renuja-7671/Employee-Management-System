@@ -1,6 +1,7 @@
 // src/app/api/leaves/summary/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { getLeaveBalanceForEmployee } from '@/lib/leave-probation-utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -44,9 +45,11 @@ export async function GET(request: NextRequest) {
         department: true,
         position: true,
         dateOfJoining: true,
+        isProbation: true,
+        confirmedAt: true,
       },
       orderBy: {
-        fullName: 'asc',
+        employeeId: 'asc',
       },
     });
 
@@ -148,6 +151,13 @@ export async function GET(request: NextRequest) {
 
       const leaveFrequency = totalApprovedLeaves / monthsSinceJoining;
 
+      // Total allocation for the year (varies for probation vs confirmed employees)
+      const leaveAllocation = getLeaveBalanceForEmployee(
+        employee.isProbation,
+        parseInt(year),
+        employee.confirmedAt
+      );
+
       // Calculate remaining balances
       const remainingBalance = {
         annual: balance.annual,
@@ -179,6 +189,11 @@ export async function GET(request: NextRequest) {
           dateOfJoining: employee.dateOfJoining,
         },
         leaveTaken,
+        leaveAllocation: {
+          annual: leaveAllocation.annual,
+          casual: leaveAllocation.casual,
+          medical: leaveAllocation.medical,
+        },
         totalApprovedLeaves,
         leaveFrequency: parseFloat(leaveFrequency.toFixed(2)),
         noPayLeaves: {

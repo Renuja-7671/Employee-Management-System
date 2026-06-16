@@ -50,6 +50,11 @@ interface EmployeeLeaveSummary {
     MEDICAL: { approved: number; pending: number; declined: number };
     OFFICIAL: { approved: number; pending: number; declined: number };
   };
+  leaveAllocation: {
+    annual: number;
+    casual: number;
+    medical: number;
+  };
   totalApprovedLeaves: number;
   leaveFrequency: number;
   noPayLeaves: {
@@ -276,8 +281,18 @@ export default function LeaveSummary() {
   };
 
   const exportToPDF = () => {
-    const doc = new jsPDF();
+    const doc = new jsPDF({ orientation: 'landscape' });
     const pageWidth = doc.internal.pageSize.width;
+
+    const formatTakenOverAllocation = (taken: number, allocation: number) =>
+      `${taken} / ${allocation}`;
+
+    const sortedEmployees = [...employees].sort((a, b) =>
+      a.employee.employeeId.localeCompare(b.employee.employeeId, undefined, {
+        numeric: true,
+        sensitivity: 'base',
+      })
+    );
 
     // Add logo and company name header
     const logoImg = new Image();
@@ -316,13 +331,30 @@ export default function LeaveSummary() {
     doc.setTextColor(59, 130, 246);
     doc.text('Employee Leave Details', 14, 98);
 
-    const tableData = employees.map(emp => [
+    doc.setFontSize(8);
+    doc.setTextColor(80, 80, 80);
+    doc.text(
+      'Annual, Casual, and Medical show Taken / Allocated days (allocation varies by probation status). Official shows taken days only.',
+      14,
+      104
+    );
+
+    const tableData = sortedEmployees.map(emp => [
       emp.employee.employeeId,
       emp.employee.name,
       emp.employee.department || 'N/A',
-      emp.leaveTaken.ANNUAL.approved.toString(),
-      emp.leaveTaken.CASUAL.approved.toString(),
-      emp.leaveTaken.MEDICAL.approved.toString(),
+      formatTakenOverAllocation(
+        emp.leaveTaken.ANNUAL.approved,
+        emp.leaveAllocation?.annual ?? 0
+      ),
+      formatTakenOverAllocation(
+        emp.leaveTaken.CASUAL.approved,
+        emp.leaveAllocation?.casual ?? 0
+      ),
+      formatTakenOverAllocation(
+        emp.leaveTaken.MEDICAL.approved,
+        emp.leaveAllocation?.medical ?? 0
+      ),
       emp.leaveTaken.OFFICIAL.approved.toString(),
       emp.totalApprovedLeaves.toString(),
       emp.noPayLeaves && emp.noPayLeaves.count > 0
@@ -331,22 +363,32 @@ export default function LeaveSummary() {
     ]);
 
     autoTable(doc, {
-      startY: 105,
-      head: [['EMP ID', 'Name', 'Department', 'Annual', 'Casual', 'Medical', 'Official', 'Total', 'No Pay']],
+      startY: 108,
+      head: [[
+        'EMP ID',
+        'Name',
+        'Department',
+        'Annual (Taken/Alloc)',
+        'Casual (Taken/Alloc)',
+        'Medical (Taken/Alloc)',
+        'Official (Taken)',
+        'Total Taken',
+        'No Pay',
+      ]],
       body: tableData,
       theme: 'grid',
-      headStyles: { fillColor: [20, 184, 166], textColor: 255 },
-      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [20, 184, 166], textColor: 255, fontSize: 7 },
+      styles: { fontSize: 7, cellPadding: 2 },
       columnStyles: {
         0: { cellWidth: 18 },
-        1: { cellWidth: 32 },
-        2: { cellWidth: 28 },
-        3: { cellWidth: 16 },
-        4: { cellWidth: 16 },
-        5: { cellWidth: 16 },
-        6: { cellWidth: 16 },
-        7: { cellWidth: 16 },
-        8: { cellWidth: 20 },
+        1: { cellWidth: 38 },
+        2: { cellWidth: 32 },
+        3: { cellWidth: 28, halign: 'center' },
+        4: { cellWidth: 28, halign: 'center' },
+        5: { cellWidth: 28, halign: 'center' },
+        6: { cellWidth: 22, halign: 'center' },
+        7: { cellWidth: 20, halign: 'center' },
+        8: { cellWidth: 22 },
       },
       didDrawPage: () => {
         // Add page numbers
