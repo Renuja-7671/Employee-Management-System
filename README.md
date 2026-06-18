@@ -85,6 +85,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY="your-supabase-anon-key"
 
 # Setup Password (for initial admin setup)
 NEXT_PUBLIC_SETUP_PASSWORD="UIS_ADMIN_2025"
+
+# Monitoring (optional — protects /api/health from public probing)
+MONITOR_SECRET="generate-with-openssl-rand-base64-32"
 ```
 
 ### 4. Database Setup
