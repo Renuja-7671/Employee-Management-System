@@ -1,0 +1,41 @@
+version: '3.8'
+
+# Monitoring & Docker management stack for EMS VPS.
+# EMS app itself may still run via PM2 — this compose manages Docker services only.
+#
+# Start:  docker compose -f docker-compose.monitoring.yml up -d
+# Stop:   docker compose -f docker-compose.monitoring.yml down
+# Logs:   docker compose -f docker-compose.monitoring.yml logs -f
+
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:1
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3001"
+    volumes:
+      - uptime-kuma-data:/app/data
+    networks:
+      - ems-monitoring
+
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: portainer
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9443:9443"
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    networks:
+      - ems-monitoring
+
+networks:
+  ems-monitoring:
+    driver: bridge
+
+volumes:
+  uptime-kuma-data:
+  portainer_data:

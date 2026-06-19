@@ -1,0 +1,24 @@
+version: '3.8'
+
+# Run EMS in Docker (uses .env for DATABASE_URL — e.g. Supabase).
+# IMPORTANT: Stop PM2 first to free port 3000:
+#   pm2 stop ems
+#
+# Start:  docker compose -f docker-compose.ems.yml up -d --build
+# Stop:   docker compose -f docker-compose.ems.yml down
+# Logs:   docker compose -f docker-compose.ems.yml logs -f app
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ems-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+    command: sh -c "npx prisma migrate deploy && node server.js"
