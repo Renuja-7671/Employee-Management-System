@@ -22,11 +22,8 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
-# Load .env for compose build args
-set -a
-# shellcheck disable=SC1091
-source .env
-set +a
+# Docker Compose reads .env automatically for build args — do not `source` it
+# (values with spaces e.g. APP_NAME=Unique Industrial Solutions break bash).
 
 bash "${SCRIPT_DIR}/install-docker.sh"
 
@@ -39,11 +36,11 @@ fi
 
 echo ""
 echo "==> Building Docker image (this may take several minutes)..."
-docker compose -f docker-compose.ems.yml build
+docker compose --env-file .env -f docker-compose.ems.yml build
 
 echo ""
 echo "==> Starting container..."
-docker compose -f docker-compose.ems.yml up -d
+docker compose --env-file .env -f docker-compose.ems.yml up -d
 
 echo ""
 echo "==> Waiting for health check..."
