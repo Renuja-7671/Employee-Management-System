@@ -1,18 +1,24 @@
 version: '3.8'
 
-# Run EMS in Docker (uses .env for DATABASE_URL — e.g. Supabase).
-# IMPORTANT: Stop PM2 first to free port 3000:
-#   pm2 stop ems
+# Production EMS — single app container, external DB via .env (Supabase/Postgres).
 #
-# Start:  docker compose -f docker-compose.ems.yml up -d --build
-# Stop:   docker compose -f docker-compose.ems.yml down
-# Logs:   docker compose -f docker-compose.ems.yml logs -f app
+# Deploy:  bash scripts/docker/deploy.sh
+# Logs:    docker compose -f docker-compose.ems.yml logs -f app
+# Stop:    docker compose -f docker-compose.ems.yml down
 
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_SETUP_PASSWORD: ${NEXT_PUBLIC_SETUP_PASSWORD:-UIS_ADMIN_2025}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Employee Management System}
+        NEXT_PUBLIC_PROJECT_ID: ${NEXT_PUBLIC_PROJECT_ID:-}
+    image: ems-app:latest
     container_name: ems-app
     restart: unless-stopped
     ports:
@@ -21,4 +27,9 @@ services:
       - .env
     environment:
       NODE_ENV: production
-    command: sh -c "npx prisma migrate deploy && node server.js"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
