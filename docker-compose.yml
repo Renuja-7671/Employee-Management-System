@@ -1,9 +1,3 @@
-#!/bin/bash
-# LOCAL DEVELOPMENT ONLY — includes a local Postgres container.
-# Production VPS deploy uses docker-compose.ems.yml + Supabase via .env instead.
-# Do NOT run: docker compose up   (this file)
-# Use:        docker compose -f docker-compose.ems.yml up
-
 version: '3.8'
 
 services:
@@ -33,29 +27,38 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+        NEXT_PUBLIC_SETUP_PASSWORD: ${NEXT_PUBLIC_SETUP_PASSWORD}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME}
+        NEXT_PUBLIC_PROJECT_ID: ${NEXT_PUBLIC_PROJECT_ID}
+
     container_name: ems-app
     restart: unless-stopped
+
     ports:
       - "3000:3000"
-    environment:
-      # Database URLs (connecting to postgres service)
-      DATABASE_URL: "postgresql://ems_user:ems_password@postgres:5432/ems_db?schema=public"
-      DIRECT_URL: "postgresql://ems_user:ems_password@postgres:5432/ems_db?schema=public"
 
-      # Supabase Configuration
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      DIRECT_URL: ${DIRECT_URL}
       NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-
-      # Setup Password
-      NEXT_PUBLIC_SETUP_PASSWORD: ${NEXT_PUBLIC_SETUP_PASSWORD:-UIS_ADMIN_2025}
-
-      # Node Environment
+      NEXT_PUBLIC_SETUP_PASSWORD: ${NEXT_PUBLIC_SETUP_PASSWORD}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME}
+      NEXT_PUBLIC_PROJECT_ID: ${NEXT_PUBLIC_PROJECT_ID}
       NODE_ENV: production
+
     depends_on:
       postgres:
         condition: service_healthy
+
     networks:
       - ems-network
+
     command: sh -c "npx prisma migrate deploy && node server.js"
 
 networks:

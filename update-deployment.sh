@@ -4,7 +4,20 @@ echo "🔄 Updating EMS Application..."
 cd /var/www/ems
 
 echo "📥 Pulling latest code from GitHub..."
-git pull origin main
+git fetch origin main
+
+if [ $? -ne 0 ]; then
+    echo "❌ Error: Git fetch failed"
+    exit 1
+fi
+
+# Production should match GitHub. Fast-forward when possible; reset if diverged.
+if git merge-base --is-ancestor HEAD origin/main 2>/dev/null && [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+    git merge --ff-only origin/main
+elif [ "$(git rev-parse HEAD)" != "$(git rev-parse origin/main)" ]; then
+    echo "⚠️  Local branch diverged from GitHub. Resetting to origin/main..."
+    git reset --hard origin/main
+fi
 
 if [ $? -ne 0 ]; then
     echo "❌ Error: Git pull failed"
