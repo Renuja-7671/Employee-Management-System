@@ -1,3 +1,9 @@
+#!/bin/bash
+# LOCAL DEVELOPMENT ONLY — includes a local Postgres container.
+# Production VPS deploy uses docker-compose.ems.yml + Supabase via .env instead.
+# Do NOT run: docker compose up   (this file)
+# Use:        docker compose -f docker-compose.ems.yml up
+
 version: '3.8'
 
 services:

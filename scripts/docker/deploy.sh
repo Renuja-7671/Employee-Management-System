@@ -22,6 +22,17 @@ if [ ! -f .env ]; then
   exit 1
 fi
 
+# Show which DB host will be used (from .env — same as PM2 setup)
+DB_HOST=$(grep -m1 '^DATABASE_URL=' .env | sed -E 's/^DATABASE_URL=//' | tr -d '"' | sed -E 's|.*@([^:/]+).*|\1|')
+echo "Database host from .env: ${DB_HOST}"
+if echo "${DB_HOST}" | grep -qi supabase; then
+  echo "Using Supabase (external DB) — correct for production."
+else
+  echo "WARNING: DATABASE_URL does not look like Supabase."
+  echo "         Check .env before continuing."
+fi
+echo ""
+
 # Docker Compose reads .env automatically for build args — do not `source` it
 # (values with spaces e.g. APP_NAME=Unique Industrial Solutions break bash).
 

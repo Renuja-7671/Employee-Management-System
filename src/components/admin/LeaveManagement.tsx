@@ -31,6 +31,7 @@ import {
   Calendar,
   FileText,
   Filter,
+  Trash2,
 } from 'lucide-react';
 import {
   Select,
@@ -40,7 +41,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { getLeaves, approveLeave, declineLeave, Leave as LeaveAPI } from '@/lib/api/leaves';
+import { getLeaves, approveLeave, declineLeave, deleteLeave, Leave as LeaveAPI } from '@/lib/api/leaves';
 import { getEmployees, Employee as EmployeeAPI } from '@/lib/api/employees';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -83,6 +84,9 @@ export function LeaveManagement() {
   const [action, setAction] = useState<'approve' | 'decline'>('approve');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [leaveToDelete, setLeaveToDelete] = useState<Leave | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [currentAdminType, setCurrentAdminType] = useState<string | null>(null);
   const [currentAdminId, setCurrentAdminId] = useState<string>('');
@@ -168,6 +172,38 @@ export function LeaveManagement() {
     setAction(actionType);
     setReason('');
     setShowDialog(true);
+  };
+
+  const handleDeleteClick = (leave: Leave) => {
+    setLeaveToDelete(leave);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!leaveToDelete || !currentAdminId) return;
+
+    setDeleting(true);
+    try {
+      const result = await deleteLeave(leaveToDelete.id, currentAdminId);
+      if (!result.success) {
+        toast.error(result.error || 'Failed to delete leave');
+        return;
+      }
+
+      toast.success(
+        result.balanceRestored
+          ? 'Leave deleted and balance restored'
+          : 'Leave deleted successfully'
+      );
+      setShowDeleteDialog(false);
+      setLeaveToDelete(null);
+      await fetchData();
+    } catch (error) {
+      console.error('Error deleting leave:', error);
+      toast.error('Failed to delete leave');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const submitAction = async () => {
@@ -796,40 +832,51 @@ export function LeaveManagement() {
                       </TableCell>
                       <TableCell>{getStatusBadge(leave.status)}</TableCell>
                       <TableCell>
-                        {leave.status === 'PENDING_ADMIN' ? (
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              className="bg-green-600 hover:bg-green-700"
-                              onClick={() => handleAction(leave, 'approve')}
-                              disabled={currentAdminType !== 'MANAGING_DIRECTOR' && currentAdminType !== 'RESERVED'}
-                              title={
-                                currentAdminType !== 'MANAGING_DIRECTOR' && currentAdminType !== 'RESERVED'
-                                  ? 'Only Managing Director or RESERVED admin can approve leaves'
-                                  : 'Approve leave request'
-                              }
-                            >
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleAction(leave, 'decline')}
-                              disabled={currentAdminType !== 'MANAGING_DIRECTOR' && currentAdminType !== 'RESERVED'}
-                              title={
-                                currentAdminType !== 'MANAGING_DIRECTOR' && currentAdminType !== 'RESERVED'
-                                  ? 'Only Managing Director or RESERVED admin can decline leaves'
-                                  : 'Decline leave request'
-                              }
-                            >
-                              <XCircle className="h-3 w-3 mr-1" />
-                              Decline
-                            </Button>
-                          </div>
-                        ) : (
-                          <span className="text-gray-400 text-sm">-</span>
-                        )}
+                        <div className="flex items-center gap-0.5 flex-nowrap">
+                          {leave.status === 'PENDING_ADMIN' && (
+                            <>
+                              <Button
+                                size="sm"
+                                className="h-6 px-1.5 text-[10px] gap-0.5 bg-green-600 hover:bg-green-700"
+                                onClick={() => handleAction(leave, 'approve')}
+                                disabled={currentAdminType !== 'MANAGING_DIRECTOR' && currentAdminType !== 'RESERVED'}
+                                title={
+                                  currentAdminType !== 'MANAGING_DIRECTOR' && currentAdminType !== 'RESERVED'
+                                    ? 'Only Managing Director or RESERVED admin can approve leaves'
+                                    : 'Approve leave request'
+                                }
+                              >
+                                <CheckCircle className="h-2.5 w-2.5" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="h-6 px-1.5 text-[10px] gap-0.5"
+                                onClick={() => handleAction(leave, 'decline')}
+                                disabled={currentAdminType !== 'MANAGING_DIRECTOR' && currentAdminType !== 'RESERVED'}
+                                title={
+                                  currentAdminType !== 'MANAGING_DIRECTOR' && currentAdminType !== 'RESERVED'
+                                    ? 'Only Managing Director or RESERVED admin can decline leaves'
+                                    : 'Decline leave request'
+                                }
+                              >
+                                <XCircle className="h-2.5 w-2.5" />
+                                Decline
+                              </Button>
+                            </>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-6 px-1.5 text-[10px] gap-0.5 text-red-600 border-red-200 hover:bg-red-50"
+                            onClick={() => handleDeleteClick(leave)}
+                            title="Permanently delete this leave and restore balance if applicable"
+                          >
+                            <Trash2 className="h-2.5 w-2.5" />
+                            Delete
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))
@@ -956,6 +1003,70 @@ export function LeaveManagement() {
                 : action === 'approve'
                 ? 'Approve Leave'
                 : 'Decline Leave'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Leave Request</DialogTitle>
+            <DialogDescription asChild>
+              {leaveToDelete && (
+                <div className="space-y-2 text-sm">
+                  <p>
+                    Permanently delete this leave for{' '}
+                    <strong>{getEmployeeName(leaveToDelete.userId)}</strong>?
+                  </p>
+                  <div>
+                    <span className="font-medium">Type:</span>{' '}
+                    <span className="capitalize">{leaveToDelete.leaveType}</span>
+                  </div>
+                  <div>
+                    <span className="font-medium">Period:</span>{' '}
+                    {new Date(leaveToDelete.startDate).toLocaleDateString()} –{' '}
+                    {new Date(leaveToDelete.endDate).toLocaleDateString()}
+                  </div>
+                  <div>
+                    <span className="font-medium">Days:</span> {leaveToDelete.days}
+                  </div>
+                  <div>
+                    <span className="font-medium">Status:</span>{' '}
+                    {leaveToDelete.status.replace(/_/g, ' ')}
+                  </div>
+                  {leaveToDelete.leaveType !== 'OFFICIAL' &&
+                    leaveToDelete.status !== 'DECLINED' &&
+                    leaveToDelete.status !== 'CANCELLED' && (
+                      <p className="text-amber-700 font-medium pt-1">
+                        {leaveToDelete.days} day(s) will be restored to the
+                        employee&apos;s {leaveToDelete.leaveType.toLowerCase()} leave
+                        balance.
+                      </p>
+                    )}
+                  <p className="text-red-600 font-medium">This action cannot be undone.</p>
+                </div>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowDeleteDialog(false);
+                setLeaveToDelete(null);
+              }}
+              disabled={deleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleting}
+            >
+              {deleting ? 'Deleting...' : 'Delete Leave'}
             </Button>
           </DialogFooter>
         </DialogContent>

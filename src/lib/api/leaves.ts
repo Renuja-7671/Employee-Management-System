@@ -208,6 +208,40 @@ export async function declineLeave(
   }
 }
 
+export async function deleteLeave(
+  id: string,
+  adminId: string
+): Promise<{ success: boolean; error?: string; balanceRestored?: boolean }> {
+  try {
+    const response = await fetch(`/api/leaves/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ adminId }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.error || 'Failed to delete leave request',
+      };
+    }
+
+    return {
+      success: true,
+      balanceRestored: data.balanceRestored,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      error: error.message || 'Failed to delete leave request',
+    };
+  }
+}
+
 export async function cancelLeave(
   id: string,
   cancellationReason: string

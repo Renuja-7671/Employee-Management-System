@@ -47,6 +47,8 @@ import {
   Shield,
   FileText,
   Download,
+  Plus,
+  Minus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { getEmployees, Employee as EmployeeAPI } from '@/lib/api/employees';
@@ -101,11 +103,19 @@ export function EmployeeProfiles() {
     confirmedAt: '',
   });
   const [saving, setSaving] = useState(false);
+  const [annualLeaveBalance, setAnnualLeaveBalance] = useState<number | null>(null);
+  const [adjustingAnnualLeave, setAdjustingAnnualLeave] = useState(false);
+  const [currentAdminId, setCurrentAdminId] = useState('');
   const [editProfilePicture, setEditProfilePicture] = useState<File | null>(null);
   const [editProfilePicturePreview, setEditProfilePicturePreview] = useState<string>('');
 
   useEffect(() => {
     fetchEmployees();
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      setCurrentAdminId(user.id || '');
+    }
   }, []);
 
   const fetchEmployees = async () => {
@@ -233,6 +243,30 @@ export function EmployeeProfiles() {
     }
   };
 
+  const getAdminId = () => {
+    if (currentAdminId) return currentAdminId;
+    const userStr = localStorage.getItem('user');
+    if (!userStr) return '';
+    const user = JSON.parse(userStr);
+    return user.id || '';
+  };
+
+  const fetchEmployeeLeaveBalance = async (employeeId: string) => {
+    const adminId = getAdminId();
+    if (!adminId) return;
+    try {
+      const res = await fetch(
+        `/api/employees/${employeeId}/leave-balance?adminId=${adminId}`
+      );
+      const data = await res.json();
+      if (res.ok) {
+        setAnnualLeaveBalance(data.balance?.annual ?? 0);
+      }
+    } catch (error) {
+      console.error('Error fetching leave balance:', error);
+    }
+  };
+
   const handleEditClick = () => {
     if (selectedEmployee) {
       setEditFormData({
@@ -252,11 +286,59 @@ export function EmployeeProfiles() {
         confirmedAt: (selectedEmployee as any).confirmedAt ? new Date((selectedEmployee as any).confirmedAt).toISOString().split('T')[0] : '',
       });
       setIsEditMode(true);
+      fetchEmployeeLeaveBalance(selectedEmployee.id);
+    }
+  };
+
+  const handleAdjustAnnualLeave = async (action: 'increment' | 'decrement') => {
+    if (!selectedEmployee) return;
+    const adminId = getAdminId();
+    if (!adminId) return;
+
+    setAdjustingAnnualLeave(true);
+    try {
+      const res = await fetch(
+        `/api/employees/${selectedEmployee.id}/leave-balance`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminId, action }),
+        }
+      );
+      const data = await res.json();
+
+      if (!res.ok) {
+        toast.error(
+          data.error ||
+            (action === 'increment'
+              ? 'Failed to increase annual leave'
+              : 'Failed to decrease annual leave')
+        );
+        return;
+      }
+
+      const newBalance = data.balance?.annual ?? data.newAnnual;
+      setAnnualLeaveBalance(newBalance);
+      toast.success(
+        action === 'increment'
+          ? `Annual leave increased to ${newBalance} day(s)`
+          : `Annual leave decreased to ${newBalance} day(s)`
+      );
+    } catch (error) {
+      console.error('Error adjusting annual leave:', error);
+      toast.error(
+        action === 'increment'
+          ? 'Failed to increase annual leave'
+          : 'Failed to decrease annual leave'
+      );
+    } finally {
+      setAdjustingAnnualLeave(false);
     }
   };
 
   const handleCancelEdit = () => {
     setIsEditMode(false);
+    setAnnualLeaveBalance(null);
     setEditProfilePicture(null);
     setEditProfilePicturePreview('');
     setEditFormData({
@@ -944,6 +1026,49 @@ export function EmployeeProfiles() {
                       This date is automatically set when probation status changes to confirmed. 
                       You can manually override it here if needed.
                     </p>
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Annual Leave Balance</Label>
+                    <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border bg-blue-50/50 border-blue-100">
+                      <div>
+                        <p className="text-2xl font-bold text-blue-700">
+                          {annualLeaveBalance !== null ? annualLeaveBalance : '—'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Current annual leave days (company allocation remaining)
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                          onClick={() => handleAdjustAnnualLeave('increment')}
+                          disabled={adjustingAnnualLeave || !getAdminId()}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          {adjustingAnnualLeave ? 'Updating...' : 'Add 1 Day'}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="border-red-300 text-red-700 hover:bg-red-100"
+                          onClick={() => handleAdjustAnnualLeave('decrement')}
+                          disabled={
+                            adjustingAnnualLeave ||
+                            !getAdminId() ||
+                            annualLeaveBalance === null ||
+                            annualLeaveBalance <= 0
+                          }
+                        >
+                          <Minus className="h-4 w-4 mr-1" />
+                          {adjustingAnnualLeave ? 'Updating...' : 'Remove 1 Day'}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
