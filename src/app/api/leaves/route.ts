@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { cleanupExpiredCoverRequests, hasExpiredCoverRequests } from '@/lib/cleanup-expired-covers';
+import { getDisplayName, getCoverEmployeeCallingName } from '@/lib/user-utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,6 +16,14 @@ export async function GET(request: NextRequest) {
     const startDate = searchParams.get('startDate');
     const endDate = searchParams.get('endDate');
     const employeeId = searchParams.get('employeeId');
+    const coverEmployeeId = searchParams.get('coverEmployeeId');
+    const status = searchParams.get('status');
+    const pageParam = searchParams.get('page');
+    const limitParam = searchParams.get('limit');
+
+    const usePagination = pageParam !== null || limitParam !== null;
+    const page = Math.max(1, parseInt(pageParam || '1', 10));
+    const limit = Math.min(100, Math.max(1, parseInt(limitParam || '10', 10)));
 
     // Build where clause
     const where: any = {};
@@ -22,6 +31,14 @@ export async function GET(request: NextRequest) {
     // Filter by employee if provided
     if (employeeId) {
       where.employeeId = employeeId;
+    }
+
+    if (coverEmployeeId) {
+      where.coverEmployeeId = coverEmployeeId;
+    }
+
+    if (status) {
+      where.status = status;
     }
 
     // Filter by date range if provided
@@ -51,12 +68,19 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    let totalCount: number | undefined;
+    if (usePagination) {
+      totalCount = await prisma.leave.count({ where });
+    }
+
     const leaves = await prisma.leave.findMany({
       where,
       include: {
         employee: {
           select: {
             id: true,
+            callingName: true,
+            fullName: true,
             firstName: true,
             lastName: true,
             employeeId: true,
@@ -66,6 +90,8 @@ export async function GET(request: NextRequest) {
         coverEmployee: {
           select: {
             id: true,
+            callingName: true,
+            fullName: true,
             firstName: true,
             lastName: true,
             employeeId: true,
@@ -75,12 +101,29 @@ export async function GET(request: NextRequest) {
           select: {
             status: true,
             expiresAt: true,
+            coverEmployeeId: true,
+            User: {
+              select: {
+                id: true,
+                callingName: true,
+                fullName: true,
+                firstName: true,
+                lastName: true,
+                employeeId: true,
+              },
+            },
           },
         },
       },
       orderBy: {
         createdAt: 'desc',
       },
+      ...(usePagination
+        ? {
+            skip: (page - 1) * limit,
+            take: limit,
+          }
+        : {}),
     });
 
     // Filter out leaves with expired cover requests (PENDING_COVER status with expired CoverRequest)
@@ -98,66 +141,115 @@ export async function GET(request: NextRequest) {
       return true; // Show all other leaves
     });
 
-    // For each leave request, check if the employee is serving as a cover employee
-    const leavesWithCoverInfo = await Promise.all(
-      activeLeaves.map(async (leave) => {
-        // Find all approved leaves where this employee is the cover employee
-        // and the dates overlap with this leave request
-        const coveringDuties = await prisma.leave.findMany({
-          where: {
-            coverEmployeeId: leave.employeeId,
-            status: 'APPROVED',
-            id: { not: leave.id }, // Exclude the current leave
-            OR: [
-              {
-                // This leave request starts during an existing covering period
-                AND: [
-                  { startDate: { lte: leave.startDate } },
-                  { endDate: { gte: leave.startDate } },
+    // Skip expensive cover-duty enrichment for paginated employee requests
+    const leavesWithCoverInfo = usePagination
+      ? activeLeaves
+      : await Promise.all(
+          activeLeaves.map(async (leave) => {
+            // Find all approved leaves where this employee is the cover employee
+            // and the dates overlap with this leave request
+            const coveringDuties = await prisma.leave.findMany({
+              where: {
+                coverEmployeeId: leave.employeeId,
+                status: 'APPROVED',
+                id: { not: leave.id }, // Exclude the current leave
+                OR: [
+                  {
+                    // This leave request starts during an existing covering period
+                    AND: [
+                      { startDate: { lte: leave.startDate } },
+                      { endDate: { gte: leave.startDate } },
+                    ],
+                  },
+                  {
+                    // This leave request ends during an existing covering period
+                    AND: [
+                      { startDate: { lte: leave.endDate } },
+                      { endDate: { gte: leave.endDate } },
+                    ],
+                  },
+                  {
+                    // This leave request completely encompasses an existing covering period
+                    AND: [
+                      { startDate: { gte: leave.startDate } },
+                      { endDate: { lte: leave.endDate } },
+                    ],
+                  },
                 ],
               },
-              {
-                // This leave request ends during an existing covering period
-                AND: [
-                  { startDate: { lte: leave.endDate } },
-                  { endDate: { gte: leave.endDate } },
-                ],
+              include: {
+                employee: {
+                  select: {
+                    firstName: true,
+                    lastName: true,
+                    employeeId: true,
+                  },
+                },
               },
-              {
-                // This leave request completely encompasses an existing covering period
-                AND: [
-                  { startDate: { gte: leave.startDate } },
-                  { endDate: { lte: leave.endDate } },
-                ],
-              },
-            ],
-          },
-          include: {
-            employee: {
-              select: {
-                firstName: true,
-                lastName: true,
-                employeeId: true,
-              },
-            },
-          },
-        });
+            });
 
-        return {
-          ...leave,
-          coveringDuties: coveringDuties.map((duty) => ({
-            employeeName: `${duty.employee.firstName} ${duty.employee.lastName}`,
-            employeeId: duty.employee.employeeId,
-            startDate: duty.startDate,
-            endDate: duty.endDate,
-            leaveType: duty.leaveType,
-            totalDays: duty.totalDays,
-          })),
-        };
-      })
-    );
+            return {
+              ...leave,
+              coveringDuties: coveringDuties.map((duty) => ({
+                employeeName: `${duty.employee.firstName} ${duty.employee.lastName}`,
+                employeeId: duty.employee.employeeId,
+                startDate: duty.startDate,
+                endDate: duty.endDate,
+                leaveType: duty.leaveType,
+                totalDays: duty.totalDays,
+              })),
+            };
+          })
+        );
 
-    return NextResponse.json({ leaves: leavesWithCoverInfo });
+    // Resolve cover employee callingName: Leave.coverEmployeeId → User.callingName
+    const coverEmployeeIds = [
+      ...new Set(
+        leavesWithCoverInfo
+          .map((leave) => leave.coverEmployeeId)
+          .filter((id): id is string => Boolean(id))
+      ),
+    ];
+
+    const coverUsersById = new Map<string, { id: string; callingName: string | null }>();
+
+    if (coverEmployeeIds.length > 0) {
+      const coverUsers = await prisma.user.findMany({
+        where: { id: { in: coverEmployeeIds } },
+        select: {
+          id: true,
+          callingName: true,
+        },
+      });
+      coverUsers.forEach((user) => coverUsersById.set(user.id, user));
+    }
+
+    const leavesResponse = leavesWithCoverInfo.map((leave) => {
+      const coverUser = leave.coverEmployeeId
+        ? coverUsersById.get(leave.coverEmployeeId) ??
+          (leave.coverEmployee
+            ? { id: leave.coverEmployee.id, callingName: leave.coverEmployee.callingName }
+            : null)
+        : null;
+
+      return {
+        ...leave,
+        coverEmployeeName: getCoverEmployeeCallingName(leave.coverEmployeeId, coverUser),
+        employeeName: getDisplayName(leave.employee),
+      };
+    });
+
+    return NextResponse.json({
+      leaves: leavesResponse,
+      ...(usePagination && {
+        pagination: {
+          page,
+          limit,
+          totalCount: totalCount ?? 0,
+          totalPages: Math.max(1, Math.ceil((totalCount ?? 0) / limit)),
+        },
+      }),
+    });
   } catch (error) {
     console.error('Error fetching leaves:', error);
     return NextResponse.json(

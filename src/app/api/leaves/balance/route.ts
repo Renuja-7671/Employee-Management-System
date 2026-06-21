@@ -44,23 +44,11 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // If no leave balance exists for this year, create one with calculated values
     if (!leaveBalance) {
       leaveBalance = await prisma.leaveBalance.create({
         data: {
           employeeId: userId,
           year: currentYear,
-          annual: calculatedBalance.annual,
-          casual: calculatedBalance.casual,
-          medical: calculatedBalance.medical,
-          official: calculatedBalance.official,
-        },
-      });
-    } else {
-      // Update existing balance if probation status affects it
-      leaveBalance = await prisma.leaveBalance.update({
-        where: { id: leaveBalance.id },
-        data: {
           annual: calculatedBalance.annual,
           casual: calculatedBalance.casual,
           medical: calculatedBalance.medical,

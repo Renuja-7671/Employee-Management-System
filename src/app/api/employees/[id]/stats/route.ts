@@ -27,25 +27,28 @@ export async function GET(
       );
     }
 
-    // Calculate base leave entitlement based on probation status
-    const baseLeaveBalance = getLeaveBalanceForEmployee(
+    // Calculate base entitlement for new records only
+    const calculatedBalance = getLeaveBalanceForEmployee(
       employee.isProbation ?? true,
       currentYear,
       employee.confirmedAt
     );
 
     // Fetch all data in parallel for maximum performance
-    const [leaveBalance, pendingLeavesCount, approvedLeavesCount, attendanceCount] = await Promise.all([
-      // Get leave balance
+    const [storedBalance, leavesForCounts, pendingLeavesCount, approvedLeavesCount, attendanceCount] = await Promise.all([
+      prisma.leaveBalance.findUnique({
+        where: { employeeId },
+      }),
+
       prisma.leave.findMany({
         where: {
           employeeId,
           status: {
-            in: ['APPROVED', 'PENDING_COVER', 'PENDING_ADMIN'], // Include pending leaves for real-time balance
+            in: ['APPROVED', 'PENDING_COVER', 'PENDING_ADMIN'],
           },
           startDate: {
-            gte: new Date(currentYear, 0, 1), // January 1st of current year
-            lt: new Date(currentYear + 1, 0, 1), // January 1st of next year
+            gte: new Date(currentYear, 0, 1),
+            lt: new Date(currentYear + 1, 0, 1),
           },
         },
         select: {
@@ -84,21 +87,34 @@ export async function GET(
       }),
     ]);
 
-    // Calculate leave balances
-    let annualTaken = 0;
-    let casualTaken = 0;
+    let leaveBalanceRecord = storedBalance;
+
+    if (!leaveBalanceRecord) {
+      leaveBalanceRecord = await prisma.leaveBalance.create({
+        data: {
+          employeeId,
+          year: currentYear,
+          annual: calculatedBalance.annual,
+          casual: calculatedBalance.casual,
+          medical: calculatedBalance.medical,
+          official: calculatedBalance.official,
+        },
+      });
+    }
+
+    // LeaveBalance stores remaining days (deducted on apply, adjusted by admin).
+    const balance = {
+      annual: Number(leaveBalanceRecord.annual) || 0,
+      casual: Number(leaveBalanceRecord.casual) || 0,
+      medical: Number(leaveBalanceRecord.medical) || 0,
+    };
+
     let medicalTaken = 0;
     let officialTaken = 0;
 
-    leaveBalance.forEach((leave) => {
+    leavesForCounts.forEach((leave) => {
       const days = Number(leave.totalDays) || 0;
       switch (leave.leaveType) {
-        case 'ANNUAL':
-          annualTaken += days;
-          break;
-        case 'CASUAL':
-          casualTaken += days;
-          break;
         case 'MEDICAL':
           medicalTaken += days;
           break;
@@ -107,12 +123,6 @@ export async function GET(
           break;
       }
     });
-
-    const balance = {
-      annual: Math.max(0, baseLeaveBalance.annual - annualTaken),
-      casual: Math.max(0, baseLeaveBalance.casual - casualTaken),
-      medical: Math.max(0, baseLeaveBalance.medical - medicalTaken),
-    };
 
     const counts = {
       medicalLeaveTaken: medicalTaken,

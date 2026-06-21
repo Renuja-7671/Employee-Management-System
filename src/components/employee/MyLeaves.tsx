@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -8,57 +8,125 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '.
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Textarea } from '../ui/textarea';
 import { Label } from '../ui/label';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from '../ui/pagination';
 import { Calendar, CheckCircle, XCircle, AlertCircle, Download } from 'lucide-react';
 import { toast } from 'sonner';
+import { getDisplayName } from '@/lib/user-utils';
+
+const PAGE_LIMIT = 10;
 
 interface MyLeavesProps {
   user: any;
 }
 
+interface PaginationMeta {
+  page: number;
+  limit: number;
+  totalCount: number;
+  totalPages: number;
+}
+
 export function MyLeaves({ user }: MyLeavesProps) {
   const [leaves, setLeaves] = useState<any[]>([]);
+  const [coverRequests, setCoverRequests] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [leavesLoading, setLeavesLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState<PaginationMeta>({
+    page: 1,
+    limit: PAGE_LIMIT,
+    totalCount: 0,
+    totalPages: 1,
+  });
   const [showCoverDialog, setShowCoverDialog] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState<any>(null);
   const [coverAction, setCoverAction] = useState<'approve' | 'decline'>('approve');
   const [coverReason, setCoverReason] = useState('');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchEmployees = useCallback(async () => {
     try {
-      const [leavesResponse, employeesResponse] = await Promise.all([
-        fetch('/api/leaves', {
-          cache: 'no-store',
-        }),
-        fetch('/api/employees', {
-          cache: 'no-store',
-        }),
-      ]);
-
-      if (leavesResponse.ok) {
-        const leavesData = await leavesResponse.json();
-        setLeaves(leavesData.leaves || []);
-      }
+      const employeesResponse = await fetch('/api/employees', {
+        cache: 'no-store',
+      });
 
       if (employeesResponse.ok) {
         const employeesData = await employeesResponse.json();
         setEmployees(employeesData.employees || []);
       }
     } catch (error) {
-      console.error('Error fetching data:', error);
+      console.error('Error fetching employees:', error);
+    }
+  }, []);
+
+  const fetchCoverRequests = useCallback(async () => {
+    try {
+      const response = await fetch(
+        `/api/leaves?coverEmployeeId=${user.id}&status=PENDING_COVER`,
+        { cache: 'no-store' }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setCoverRequests(data.leaves || []);
+      }
+    } catch (error) {
+      console.error('Error fetching cover requests:', error);
+    }
+  }, [user.id]);
+
+  const fetchMyLeaves = useCallback(async (pageNum: number) => {
+    setLeavesLoading(true);
+    try {
+      const response = await fetch(
+        `/api/leaves?employeeId=${user.id}&page=${pageNum}&limit=${PAGE_LIMIT}`,
+        { cache: 'no-store' }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setLeaves(data.leaves || []);
+        if (data.pagination) {
+          setPagination(data.pagination);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching leaves:', error);
     } finally {
+      setLeavesLoading(false);
       setLoading(false);
     }
+  }, [user.id]);
+
+  useEffect(() => {
+    fetchEmployees();
+    fetchCoverRequests();
+  }, [fetchEmployees, fetchCoverRequests]);
+
+  useEffect(() => {
+    fetchMyLeaves(page);
+  }, [fetchMyLeaves, page]);
+
+  const refreshData = async () => {
+    await Promise.all([fetchMyLeaves(page), fetchCoverRequests()]);
   };
 
   const getEmployeeName = (userId: string | null | undefined) => {
     if (!userId) return 'Unknown';
     const employee = employees.find(e => e.id === userId);
-    return employee ? (employee.callingName || employee.fullName || `${employee.firstName} ${employee.lastName}`) : 'Unknown';
+    return employee ? getDisplayName(employee) : 'Unknown';
+  };
+
+  const getLeaveEmployeeName = (leave: any) => {
+    if (leave.employeeName) return leave.employeeName;
+    if (leave.employee) return getDisplayName(leave.employee);
+    return getEmployeeName(leave.employeeId);
   };
 
   const handleCancelLeave = async (leaveId: string) => {
@@ -75,7 +143,11 @@ export function MyLeaves({ user }: MyLeavesProps) {
 
       if (response.ok) {
         toast.success('Leave cancelled successfully');
-        fetchData();
+        if (leaves.length === 1 && page > 1) {
+          setPage(page - 1);
+        } else {
+          refreshData();
+        }
       } else {
         const data = await response.json();
         toast.error(data.error || 'Failed to cancel leave');
@@ -113,7 +185,7 @@ export function MyLeaves({ user }: MyLeavesProps) {
         toast.success(`Cover request ${coverAction === 'approve' ? 'approved' : 'declined'} successfully`);
         setShowCoverDialog(false);
         setCoverReason('');
-        fetchData();
+        refreshData();
       } else {
         const data = await response.json();
         toast.error(data.error || 'Failed to respond to cover request');
@@ -138,38 +210,50 @@ export function MyLeaves({ user }: MyLeavesProps) {
     return <Badge variant={config.variant} className={config.className}>{config.label}</Badge>;
   };
 
-  const exportToCSV = () => {
-    const myLeaves = leaves.filter(l => l.employeeId === user.id);
-    const headers = ['Leave Type', 'Start Date', 'End Date', 'Days', 'Status', 'Applied Date'];
-    const rows = myLeaves.map(leave => [
-      leave.leaveType.toLowerCase(),
-      new Date(leave.startDate).toLocaleDateString(),
-      new Date(leave.endDate).toLocaleDateString(),
-      leave.totalDays,
-      leave.status,
-      new Date(leave.createdAt).toLocaleDateString(),
-    ]);
+  const exportToCSV = async () => {
+    try {
+      const response = await fetch(`/api/leaves?employeeId=${user.id}`, {
+        cache: 'no-store',
+      });
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(',')),
-    ].join('\n');
+      if (!response.ok) {
+        toast.error('Failed to export leaves');
+        return;
+      }
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `my_leaves_${new Date().toISOString().split('T')[0]}.csv`;
-    a.click();
-    window.URL.revokeObjectURL(url);
+      const data = await response.json();
+      const allLeaves = data.leaves || [];
+      const headers = ['Leave Type', 'Start Date', 'End Date', 'Days', 'Status', 'Applied Date'];
+      const rows = allLeaves.map((leave: any) => [
+        leave.leaveType.toLowerCase(),
+        new Date(leave.startDate).toLocaleDateString(),
+        new Date(leave.endDate).toLocaleDateString(),
+        leave.totalDays,
+        leave.status,
+        new Date(leave.createdAt).toLocaleDateString(),
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map((row: string[]) => row.join(',')),
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `my_leaves_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting leaves:', error);
+      toast.error('Failed to export leaves');
+    }
   };
 
   if (loading) {
     return <div className="text-center py-8">Loading...</div>;
   }
-
-  const myLeaves = leaves.filter(l => l.employeeId === user.id);
-  const coverRequests = leaves.filter(l => l.coverEmployeeId === user.id && l.status === 'PENDING_COVER');
 
   return (
     <div className="space-y-6">
@@ -196,7 +280,7 @@ export function MyLeaves({ user }: MyLeavesProps) {
               <TableBody>
                 {coverRequests.map((leave) => (
                   <TableRow key={leave.id}>
-                    <TableCell>{getEmployeeName(leave.employeeId)}</TableCell>
+                    <TableCell>{getLeaveEmployeeName(leave)}</TableCell>
                     <TableCell className="capitalize">{leave.leaveType.toLowerCase()}</TableCell>
                     <TableCell>
                       {new Date(leave.startDate).toLocaleDateString()} - {new Date(leave.endDate).toLocaleDateString()}
@@ -254,14 +338,20 @@ export function MyLeaves({ user }: MyLeavesProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {myLeaves.length === 0 ? (
+              {leavesLoading ? (
+                <TableRow>
+                  <TableCell colSpan={6} className="text-center text-gray-500">
+                    Loading...
+                  </TableCell>
+                </TableRow>
+              ) : leaves.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={6} className="text-center text-gray-500">
                     No leave requests found. Apply for leave to get started.
                   </TableCell>
                 </TableRow>
               ) : (
-                myLeaves.map((leave) => (
+                leaves.map((leave) => (
                   <TableRow key={leave.id}>
                     <TableCell className="capitalize">{leave.leaveType.toLowerCase()}</TableCell>
                     <TableCell>
@@ -271,7 +361,7 @@ export function MyLeaves({ user }: MyLeavesProps) {
                       </div>
                     </TableCell>
                     <TableCell>{leave.totalDays}</TableCell>
-                    <TableCell>{getEmployeeName(leave.coverEmployeeId)}</TableCell>
+                    <TableCell>{leave.coverEmployeeName ?? '—'}</TableCell>
                     <TableCell>{getStatusBadge(leave.status)}</TableCell>
                     <TableCell>
                       {(leave.status === 'PENDING_COVER' || leave.status === 'PENDING_ADMIN') && (
@@ -299,6 +389,49 @@ export function MyLeaves({ user }: MyLeavesProps) {
               )}
             </TableBody>
           </Table>
+
+          {pagination.totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mt-4">
+              <p className="text-sm text-muted-foreground">
+                Showing {(pagination.page - 1) * pagination.limit + 1}–
+                {Math.min(pagination.page * pagination.limit, pagination.totalCount)} of{' '}
+                {pagination.totalCount} leave requests
+              </p>
+              <Pagination className="mx-0 w-auto justify-end">
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (page > 1) setPage(page - 1);
+                      }}
+                      className={page <= 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                    />
+                  </PaginationItem>
+                  <PaginationItem>
+                    <span className="px-3 text-sm text-muted-foreground">
+                      Page {pagination.page} of {pagination.totalPages}
+                    </span>
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationNext
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (page < pagination.totalPages) setPage(page + 1);
+                      }}
+                      className={
+                        page >= pagination.totalPages
+                          ? 'pointer-events-none opacity-50'
+                          : 'cursor-pointer'
+                      }
+                    />
+                  </PaginationItem>
+                </PaginationContent>
+              </Pagination>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -312,7 +445,7 @@ export function MyLeaves({ user }: MyLeavesProps) {
             <DialogDescription>
               {selectedLeave && (
                 <>
-                  {getEmployeeName(selectedLeave.employeeId)} requested you to cover their{' '}
+                  {getLeaveEmployeeName(selectedLeave)} requested you to cover their{' '}
                   {selectedLeave.leaveType.toLowerCase()} leave from{' '}
                   {new Date(selectedLeave.startDate).toLocaleDateString()} to{' '}
                   {new Date(selectedLeave.endDate).toLocaleDateString()} ({selectedLeave.totalDays} days)
